@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package seagull.platform.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message VersionRange {
+  uint32 minimum = 1;
+  uint32 maximum = 2;
+}
+
+message Descriptor {
+  uint32 protocol_version = 1;
+  VersionRange supported_protocol = 2;
+  uint32 event_schema_version = 3;
+  VersionRange supported_event_schema = 4;
+  google.protobuf.Timestamp server_time = 5;
+}
