@@ -32,7 +32,13 @@ check: generate
 	fi
 
 breaking: $(LOCAL_BIN)/buf
-	buf breaking --against '.git#branch=main'
+	@git rev-parse --verify --quiet main >/dev/null || \
+	  { echo "no local main to compare against; run: git fetch origin main:main"; exit 1; }
+	@if [ -z "$$(git ls-tree -r --name-only main -- proto)" ]; then \
+	  echo "main carries no contracts yet; nothing to compare against"; \
+	else \
+	  buf breaking --against '.git#branch=main'; \
+	fi
 
 build:
 	$(GO) build ./...
