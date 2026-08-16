@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package seagull.event.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum EventClass {
+  EVENT_CLASS_UNSPECIFIED = 0;
+  EVENT_CLASS_AUTHENTICATION = 1;
+}
+
+enum Outcome {
+  OUTCOME_UNSPECIFIED = 0;
+  OUTCOME_SUCCESS = 1;
+  OUTCOME_FAILURE = 2;
+}
+
+enum Transport {
+  TRANSPORT_UNSPECIFIED = 0;
+  TRANSPORT_TCP = 1;
+  TRANSPORT_UDP = 2;
+}
+
+message Timestamps {
+  google.protobuf.Timestamp event_time = 1;
+  google.protobuf.Timestamp observed_time = 2;
+}
+
+// Written by the platform when a batch is admitted. A producer cannot place
+// itself in this part of the record: the gateway replaces the whole message.
+message Reception {
+  google.protobuf.Timestamp ingest_time = 1;
+  string gateway = 2;
+  string batch_id = 3;
+}
+
+message Host {
+  string hostname = 1;
+  string ip = 2;
+  string os = 3;
+  string architecture = 4;
+}
+
+message Origin {
+  string tenant_id = 1;
+  string agent_id = 2;
+  Host host = 3;
+}
+
+message Collection {
+  string collector = 1;
+  string source = 2;
+  uint64 sequence = 3;
+}
+
+message User {
+  string name = 1;
+  string domain = 2;
+  string uid = 3;
+}
+
+message Endpoint {
+  string ip = 1;
+  uint32 port = 2;
+}
+
+message Network {
+  Endpoint source = 1;
+  Endpoint destination = 2;
+  Transport transport = 3;
+}
+
+message Service {
+  string name = 1;
+  string protocol = 2;
+}
+
+message Authentication {
+  enum Activity {
+    ACTIVITY_UNSPECIFIED = 0;
+    ACTIVITY_LOGON = 1;
+    ACTIVITY_LOGOFF = 2;
+  }
+
+  Activity activity = 1;
+  Outcome outcome = 2;
+  string outcome_reason = 3;
+  string method = 4;
+  User user = 5;
+  Service service = 6;
+  Network network = 7;
+  string raw_record = 15;
+}
+
+message Event {
+  string event_id = 1;
+  uint32 schema_version = 2;
+  EventClass event_class = 3;
+  Timestamps time = 4;
+  Origin origin = 5;
+  Collection collection = 6;
+  Reception reception = 7;
+
+  oneof body {
+    Authentication authentication = 16;
+  }
+}

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package seagull.ingest.v1;
+
+import "seagull/event/v1/event.proto";
+
+message EventBatch {
+  string batch_id = 1;
+  uint32 protocol_version = 2;
+  repeated seagull.event.v1.Event events = 3;
+}
+
+// A producer may drop its local copy of a batch only when every field agrees:
+// accepted, durable, and a count that matches what it sent.
+message BatchAck {
+  bool accepted = 1;
+  bool durable = 2;
+  uint32 received = 3;
+}
+
+message Rejection {
+  string code = 1;
+  string detail = 2;
+  string field = 3;
+  int32 event_index = 4;
+}
