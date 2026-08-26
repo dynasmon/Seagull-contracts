@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package seagull.detection.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/event/v1/event.proto";
+
+// How much the rule says a detection matters. A closed set, because a consumer
+// routes on it and a severity nobody declared is a detection nobody sees.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+// Which rule decided this and at which revision — enough to find the rule and
+// read it back, and deliberately not a copy of it. A rule's prose belongs to
+// the ruleset, which is named by its own content and can be fetched.
+message Rule {
+  string id = 1;
+  uint32 revision = 2;
+  string name = 3;
+  Source source = 4;
+}
+
+// Where the rule itself came from, when this estate did not write it. Both
+// fields or neither: half a provenance is a claim nobody can follow.
+message Source {
+  string catalogue = 1;
+  string identifier = 2;
+}
+
+// Where the rule sits in ATT&CK. Optional, and all of it or none of it.
+message Technique {
+  string tactic = 1;
+  string id = 2;
+  string name = 3;
+}
+
+// One question the rule asked of the event, and what the event answered. This
+// is where a field value the platform observed is allowed to live: it is the
+// reason the detection exists, and it is carried here rather than in a log line
+// so that what an event held stays out of the platform's own output.
+message Evidence {
+  string field = 1;
+  string operator = 2;
+  bool negated = 3;
+
+  // What the event held, written the way a rule writes a literal. Empty when
+  // absent is set: the event did not carry the field at all, which is a
+  // different observation from carrying nothing.
+  string held = 4;
+  bool absent = 5;
+}
+
+// The result of analytical logic matching evidence.
+//
+// A detection is not an alert. It carries no status, no assignee and no
+// disposition: it is a statement that a rule matched an event, and what an
+// operator then does about it has a lifecycle of its own that belongs to the
+// alert. Nor is it an event — the events it was decided from are named here and
+// stored elsewhere.
+message Detection {
+  // Derived from the rule, its revision, and the events it was decided from, so
+  // that deciding the same events against the same rule twice names the same
+  // detection. A replay therefore rewrites what it already wrote instead of
+  // adding a second copy of it.
+  string detection_id = 1;
+  uint32 schema_version = 2;
+
+  Rule rule = 3;
+
+  // The set of rules the deciding process was pinned to, named by what is in
+  // it, so a detection can be traced back to exactly what decided it.
+  string ruleset_id = 4;
+
+  Severity severity = 5;
+  Technique technique = 6;
+
+  seagull.event.v1.EventClass event_class = 7;
+  seagull.event.v1.Origin origin = 8;
+  repeated string source_event_ids = 9;
+
+  // When the thing happened, taken from the events it was decided from, and
+  // when the platform decided it. The first places a detection on a timeline;
+  // the second says when this evaluation ran and is not part of its identity.
+  google.protobuf.Timestamp event_time = 10;
+  google.protobuf.Timestamp detected_time = 11;
+
+  repeated Evidence evidence = 12;
+}
