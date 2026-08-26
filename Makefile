@@ -31,13 +31,22 @@ check: generate
 	  git --no-pager diff --stat -- gen; exit 1; \
 	fi
 
+# The baseline is the remote-tracking ref rather than a local branch. Fetching
+# into `refs/heads/main` is refused whenever main happens to be checked out,
+# which is a property of the workspace and not of the contracts, and it is what
+# broke this check in CI; a remote-tracking ref is never checked out, so it can
+# always be fetched and always be read. A local main is still accepted, for a
+# working copy that has one and no remote.
 breaking: $(LOCAL_BIN)/buf
-	@git rev-parse --verify --quiet main >/dev/null || \
-	  { echo "no local main to compare against; run: git fetch origin main:main"; exit 1; }
-	@if [ -z "$$(git ls-tree -r --name-only main -- proto)" ]; then \
-	  echo "main carries no contracts yet; nothing to compare against"; \
+	@baseline=origin/main; \
+	git rev-parse --verify --quiet "$$baseline" >/dev/null || baseline=main; \
+	git rev-parse --verify --quiet "$$baseline" >/dev/null || \
+	  { echo "no baseline to compare against; run: git fetch origin main"; exit 1; }; \
+	if [ -z "$$(git ls-tree -r --name-only "$$baseline" -- proto)" ]; then \
+	  echo "$$baseline carries no contracts yet; nothing to compare against"; \
 	else \
-	  buf breaking --against '.git#branch=main'; \
+	  echo "comparing against $$baseline"; \
+	  buf breaking --against ".git#ref=$$baseline"; \
 	fi
 
 build:
