@@ -68,6 +68,6 @@ jobs:
           path: .local/bin
           key: contract-tools-${{ runner.os }}-${{ env.GO_VERSION }}-${{ hashFiles('tools/buf/go.sum') }}
       - name: make main available as the baseline
-        run: git fetch origin main:main
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - name: refuse breaking changes
         run: make breaking
