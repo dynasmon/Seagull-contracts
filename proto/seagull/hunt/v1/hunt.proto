@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package seagull.hunt.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/detection/v1/detection.proto";
+import "seagull/event/v1/event.proto";
+
+// What one question asks of one field. A closed set, because the server compiles
+// it and an operator nobody declared is a query nobody can cost.
+//
+// There is no regular expression and no wildcard. A pattern language lets the
+// caller decide how much of the store a query reads, and a read plane that
+// cannot cost a query in advance cannot protect the store behind it.
+enum Operator {
+  OPERATOR_UNSPECIFIED = 0;
+  OPERATOR_EQUALS = 1;
+  OPERATOR_ONE_OF = 2;
+  OPERATOR_CONTAINS = 3;
+  OPERATOR_STARTS_WITH = 4;
+  OPERATOR_ENDS_WITH = 5;
+  OPERATOR_ABOVE = 6;
+  OPERATOR_AT_LEAST = 7;
+  OPERATOR_BELOW = 8;
+  OPERATOR_AT_MOST = 9;
+  OPERATOR_PRESENT = 10;
+}
+
+// One question about one field of the record, named by the path the contract
+// declares it under — `authentication.user.name`, `rule.id`. There is no
+// dictionary between what a caller writes and what the record is called.
+message Predicate {
+  string field = 1;
+  Operator operator = 2;
+
+  // Written the way a person says it: `failure`, not `OUTCOME_FAILURE`; `1024`,
+  // not a number field of its own. The server holds each literal to what the
+  // field is declared to carry.
+  repeated string values = 3;
+}
+
+message Group {
+  repeated Expression terms = 1;
+}
+
+// The boolean shape a query matches with, closed the same way the rule language
+// is closed: a server has to switch over every form there is, and a shape it can
+// grow behind the compiler's back is a shape that reads differently in two
+// places.
+message Expression {
+  oneof form {
+    Predicate predicate = 1;
+    Group all = 2;
+    Group any = 3;
+    Expression negated = 4;
+  }
+}
+
+// Half open: `start` is included and `end` is not, so consecutive windows tile a
+// timeline instead of both claiming the instant between them.
+message TimeRange {
+  google.protobuf.Timestamp start = 1;
+  google.protobuf.Timestamp end = 2;
+}
+
+// A question asked of what the platform stored.
+//
+// The range is required and is not a predicate. It is what makes a query
+// answerable at all: the store is partitioned by event time, and a question
+// without a horizon is a question about everything ever collected.
+message Query {
+  TimeRange range = 1;
+  Expression where = 2;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 3;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged: it is the server's own token and is not composed by a
+  // caller.
+  string cursor = 4;
+}
+
+// Records are newest first. An empty `next_cursor` means the range holds nothing
+// further, and a page shorter than the limit does not: a store answers within a
+// budget and can return fewer rows than it has.
+message EventPage {
+  repeated seagull.event.v1.Event events = 1;
+  string next_cursor = 2;
+}
+
+message DetectionPage {
+  repeated seagull.detection.v1.Detection detections = 1;
+  string next_cursor = 2;
+}
+
+// Why a query was not answered. `field` names the part of the query at fault
+// when one part is at fault, so a caller can correct it rather than guess.
+message Refusal {
+  string code = 1;
+  string detail = 2;
+  string field = 3;
+}
