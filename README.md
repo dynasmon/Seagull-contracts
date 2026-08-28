@@ -13,6 +13,9 @@ must be able to change internally without asking an agent to upgrade.
 proto/seagull/event/v1/        the canonical security event
 proto/seagull/ingest/v1/       what an agent sends and what it is told back
 proto/seagull/platform/v1/     the descriptor an agent negotiates against
+proto/seagull/detection/v1/    what the rules decided about an event
+proto/seagull/hunt/v1/         what a person may ask of what was stored
+proto/seagull/control/v1/      who a caller is and what they may do
 gen/go/                        generated Go, committed
 ```
 
