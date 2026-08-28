@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package seagull.control.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+enum Resource {
+  RESOURCE_UNSPECIFIED = 0;
+  RESOURCE_EVENTS = 1;
+  RESOURCE_DETECTIONS = 2;
+  RESOURCE_RULESETS = 3;
+  RESOURCE_ALERTS = 4;
+  RESOURCE_AGENTS = 5;
+  RESOURCE_POLICIES = 6;
+  RESOURCE_SESSIONS = 7;
+}
+
+enum Action {
+  ACTION_UNSPECIFIED = 0;
+  ACTION_READ = 1;
+  ACTION_WRITE = 2;
+  ACTION_DELETE = 3;
+}
+
+message Permission {
+  Resource resource = 1;
+  Action action = 2;
+}
+
+// Sent so a client can show a caller what they hold. The server decides every
+// request against its own policy regardless of what the client believes.
+message Grant {
+  string subject = 1;
+  repeated string tenants = 2;
+  repeated string roles = 3;
+  repeated Permission permissions = 4;
+}
+
+message Session {
+  string id = 1;
+  google.protobuf.Timestamp issued_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  Grant grant = 4;
+}
+
+message SessionList {
+  repeated Session sessions = 1;
+}
+
+// The caller has already proved who they are by completing mutual TLS, so no
+// credential is carried here.
+message SessionRequest {
+  google.protobuf.Duration requested_lifetime = 1;
+}
+
+// The token is spendable only on a connection proving the certificate it was
+// issued to, and is returned once.
+message SessionResponse {
+  string token = 1;
+  Session session = 2;
+}
+
+// An empty session_id ends the caller's own session; ending another caller's is
+// a permission.
+message RevocationRequest {
+  string session_id = 1;
+}
+
+message RevocationResponse {
+  uint32 revoked = 1;
+}
+
+message Refusal {
+  string code = 1;
+  string detail = 2;
+}
