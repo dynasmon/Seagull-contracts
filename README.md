@@ -16,6 +16,7 @@ proto/seagull/platform/v1/     the descriptor an agent negotiates against
 proto/seagull/detection/v1/    what the rules decided about an event
 proto/seagull/hunt/v1/         what a person may ask of what was stored
 proto/seagull/control/v1/      who a caller is and what they may do
+proto/seagull/ruleset/v1/      the rules a platform runs, and which set of them
 gen/go/                        generated Go, committed
 ```
 
@@ -58,6 +59,18 @@ identity, its tenant, or its place in the platform's timeline.
 
 The shape is aligned with OCSF where that buys interoperability, and departs
 from it where Seagull has its own need. It does not carry OCSF identifiers.
+
+## The ruleset
+
+A rule crosses this boundary as a typed expression tree rather than as the
+document somebody wrote it in, so a process that runs rules never learns a file
+format. The cases a rule was written for travel with it and are not part of what
+names the ruleset: writing a case is not a change to what anything detects.
+
+A published ruleset is immutable and named by its own content. `Record` is what
+the ruleset topic carries — every version under its own id, and one pointer
+naming the version to run — so activating an older version asks for exactly what
+ran before rather than for a reconstruction of it.
 
 ## The acknowledgement
 
