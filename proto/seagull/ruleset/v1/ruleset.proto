@@ -1,0 +1,219 @@
+syntax = "proto3";
+
+package seagull.ruleset.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/detection/v1/detection.proto";
+import "seagull/event/v1/event.proto";
+
+// Where a rule is in its life. One axis rather than two: a status and a
+// separate enabled flag leaves somebody having to decide what an active rule
+// that is disabled means.
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_DRAFT = 1;
+  STATUS_ACTIVE = 2;
+  STATUS_DISABLED = 3;
+  STATUS_DEPRECATED = 4;
+}
+
+// What a case says the rule should answer about the event it carries.
+enum Expectation {
+  EXPECTATION_UNSPECIFIED = 0;
+  EXPECTATION_MATCH = 1;
+  EXPECTATION_NO_MATCH = 2;
+}
+
+// A literal a rule compares against. The kind is carried rather than inferred,
+// because a port written as text and a port written as a number are different
+// rules and only one of them compiles.
+message Value {
+  oneof literal {
+    string text = 1;
+    double number = 2;
+    bool truth = 3;
+  }
+}
+
+// A question about one field. Field and operator are names the rule language
+// owns rather than enums this file closes: a build that does not know one
+// refuses the rule when it compiles it, which is the same answer an enum would
+// give without making every new operator a release of this repository.
+message Predicate {
+  string field = 1;
+  string operator = 2;
+  repeated Value values = 3;
+}
+
+message Terms {
+  repeated Expression terms = 1;
+}
+
+// The boolean expression a rule matches with. Closed on purpose: a reader has
+// to answer for every shape there is, and one it does not know is a rule that
+// would decide differently in two places.
+message Expression {
+  oneof term {
+    Predicate predicate = 1;
+    Terms all = 2;
+    Terms any = 3;
+    Expression negated = 4;
+  }
+}
+
+// One event a rule was written to be sure about, and what it should say. A case
+// changes nothing about what any event decides, so it does not change the
+// ruleset's identity; it travels with the rule because a rule that arrives
+// without its cases is a rule nobody can change safely.
+message Case {
+  string name = 1;
+  string description = 2;
+  Expectation expect = 3;
+  map<string, Value> event = 4;
+  repeated string evidence = 5;
+  seagull.detection.v1.Severity severity = 6;
+}
+
+// A detection rule as it crosses a runtime boundary. The document somebody
+// wrote it in stays with the control plane that read it: what reaches an engine
+// is the rule, so a process that runs rules never learns a file format.
+message Rule {
+  string id = 1;
+  uint32 revision = 2;
+  string name = 3;
+  string description = 4;
+  seagull.event.v1.EventClass event_class = 5;
+  Expression match = 6;
+  seagull.detection.v1.Severity severity = 7;
+  Status status = 8;
+  seagull.detection.v1.Technique technique = 9;
+  string false_positives = 10;
+  string response = 11;
+  seagull.detection.v1.Source source = 12;
+  repeated string tags = 13;
+  repeated string references = 14;
+  repeated Case cases = 15;
+}
+
+// A published ruleset: immutable, and named by what is in it. Whoever reads one
+// recomputes the id from the rules, so a record that does not name itself is
+// refused rather than run.
+message Version {
+  string id = 1;
+  repeated Rule rules = 2;
+  string published_by = 3;
+  google.protobuf.Timestamp published_at = 4;
+  string note = 5;
+}
+
+// Which published ruleset a process should be running. The only mutable thing
+// on the topic; rolling back is one of these naming an older version, so
+// nothing is ever deleted to undo a rollout.
+message Active {
+  string ruleset_id = 1;
+  string activated_by = 2;
+  google.protobuf.Timestamp activated_at = 3;
+  string note = 4;
+}
+
+// What the ruleset topic carries. One message rather than two so that a log
+// which will be replayed for as long as the platform lives has one decode path.
+message Record {
+  oneof record {
+    Version version = 1;
+    Active active = 2;
+  }
+}
+
+// A rule document as somebody wrote it, named so a fault can say where it came
+// from.
+message Document {
+  string name = 1;
+  bytes content = 2;
+}
+
+// Where a document was refused, precise enough to put a cursor on it.
+message Fault {
+  string source = 1;
+  uint32 line = 2;
+  uint32 column = 3;
+  string rule = 4;
+  string part = 5;
+  string reason = 6;
+}
+
+message ValidationRequest {
+  repeated Document documents = 1;
+}
+
+// What the documents would be published as, when they hold together at all.
+message ValidationResponse {
+  bool valid = 1;
+  string ruleset_id = 2;
+  uint32 rules = 3;
+  uint32 running = 4;
+  repeated Fault faults = 5;
+}
+
+// A case that did not hold, and the document it was written in.
+message Unheld {
+  string source = 1;
+  string rule = 2;
+  string case_name = 3;
+  string reason = 4;
+}
+
+message CheckRequest {
+  repeated Document documents = 1;
+}
+
+// A rule nothing was written for is reported rather than refused: whether an
+// estate ships an untested rule is its own decision.
+message CheckResponse {
+  bool held = 1;
+  uint32 rules = 2;
+  uint32 cases = 3;
+  repeated Unheld unheld = 4;
+  repeated string untested = 5;
+}
+
+// Publishing stores a version; it does not start running it. Activating is a
+// second act, which is what makes a rollout controlled and a rollback a thing
+// that can be asked for.
+message PublishRequest {
+  repeated Document documents = 1;
+  string note = 2;
+}
+
+message PublishResponse {
+  string ruleset_id = 1;
+  bool published = 2;
+  ValidationResponse validation = 3;
+  CheckResponse check = 4;
+}
+
+message ActivationRequest {
+  string ruleset_id = 1;
+  string note = 2;
+}
+
+message ActivationResponse {
+  Active active = 1;
+  string replaced = 2;
+}
+
+// A published ruleset without its rules, for a list somebody reads.
+message Summary {
+  string id = 1;
+  uint32 rules = 2;
+  uint32 running = 3;
+  string published_by = 4;
+  google.protobuf.Timestamp published_at = 5;
+  string note = 6;
+  bool active = 7;
+}
+
+message VersionList {
+  repeated Summary versions = 1;
+  Active active = 2;
+}
