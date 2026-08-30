@@ -81,11 +81,17 @@ half of an alert is copied from the detection that raised it and never changes,
 and the operational half — its state, who holds it, why it was closed — changes
 without the detection moving.
 
-An alert is named by the detection it is about, so re-deciding the same events
+An alert is named by the detection that raised it, so re-deciding the same events
 against the same rule finds the alert that already exists rather than raising a
 second one. `State` is closed and `RESOLVED` is not `FALSE_POSITIVE`: the first
 says the platform was right, the second says it was wrong, and only the second
 tells a rule author that a rule needs correcting.
+
+Detections that are the same piece of work share a `correlation_key` and fold
+into one alert, which counts its `occurrences` and carries the event times of the
+first and the last. Folding discards nothing: `Occurrence` names every detection
+an alert is made of, so a count can always be read back to the evidence behind
+it.
 
 ## The acknowledgement
 
