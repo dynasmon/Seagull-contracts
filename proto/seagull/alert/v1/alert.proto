@@ -73,6 +73,33 @@ message Alert {
   uint64 revision = 16;
 
   Closure closure = 17;
+
+  // What makes two detections the same piece of work: a digest of the rule, the
+  // tenant, and whatever else the estate declared the alert is keyed by. Two
+  // detections sharing it fold into one alert instead of raising two.
+  string correlation_key = 18;
+
+  // How many detections this alert is made of, and the event times of the first
+  // and the last. They are event times and not processing times, so a replay
+  // decides the same way however long afterwards it runs.
+  uint64 occurrences = 19;
+  google.protobuf.Timestamp first_seen = 20;
+  google.protobuf.Timestamp last_seen = 21;
+}
+
+// One detection folded into an alert. The alert is the piece of work; these are
+// what it is made of, and an investigation reads them to reach the evidence
+// behind a count. Folding never discards one.
+message Occurrence {
+  string detection_id = 1;
+  google.protobuf.Timestamp event_time = 2;
+  google.protobuf.Timestamp folded_at = 3;
+}
+
+message Occurrences {
+  string alert_id = 1;
+  repeated Occurrence occurrences = 2;
+  string next_cursor = 3;
 }
 
 // One thing somebody did to an alert. Append only: the trail is what makes a
