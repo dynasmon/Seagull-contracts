@@ -193,8 +193,18 @@ type Alert struct {
 	// Moves by one on every transition, and a caller may say which revision it
 	// believed it was acting on. Two analysts acting at once means the second is
 	// told the alert moved rather than quietly overwriting the first.
-	Revision      uint64   `protobuf:"varint,16,opt,name=revision,proto3" json:"revision,omitempty"`
-	Closure       *Closure `protobuf:"bytes,17,opt,name=closure,proto3" json:"closure,omitempty"`
+	Revision uint64   `protobuf:"varint,16,opt,name=revision,proto3" json:"revision,omitempty"`
+	Closure  *Closure `protobuf:"bytes,17,opt,name=closure,proto3" json:"closure,omitempty"`
+	// What makes two detections the same piece of work: a digest of the rule, the
+	// tenant, and whatever else the estate declared the alert is keyed by. Two
+	// detections sharing it fold into one alert instead of raising two.
+	CorrelationKey string `protobuf:"bytes,18,opt,name=correlation_key,json=correlationKey,proto3" json:"correlation_key,omitempty"`
+	// How many detections this alert is made of, and the event times of the first
+	// and the last. They are event times and not processing times, so a replay
+	// decides the same way however long afterwards it runs.
+	Occurrences   uint64                 `protobuf:"varint,19,opt,name=occurrences,proto3" json:"occurrences,omitempty"`
+	FirstSeen     *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=first_seen,json=firstSeen,proto3" json:"first_seen,omitempty"`
+	LastSeen      *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -348,6 +358,157 @@ func (x *Alert) GetClosure() *Closure {
 	return nil
 }
 
+func (x *Alert) GetCorrelationKey() string {
+	if x != nil {
+		return x.CorrelationKey
+	}
+	return ""
+}
+
+func (x *Alert) GetOccurrences() uint64 {
+	if x != nil {
+		return x.Occurrences
+	}
+	return 0
+}
+
+func (x *Alert) GetFirstSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FirstSeen
+	}
+	return nil
+}
+
+func (x *Alert) GetLastSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeen
+	}
+	return nil
+}
+
+// One detection folded into an alert. The alert is the piece of work; these are
+// what it is made of, and an investigation reads them to reach the evidence
+// behind a count. Folding never discards one.
+type Occurrence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DetectionId   string                 `protobuf:"bytes,1,opt,name=detection_id,json=detectionId,proto3" json:"detection_id,omitempty"`
+	EventTime     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=event_time,json=eventTime,proto3" json:"event_time,omitempty"`
+	FoldedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=folded_at,json=foldedAt,proto3" json:"folded_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Occurrence) Reset() {
+	*x = Occurrence{}
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Occurrence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Occurrence) ProtoMessage() {}
+
+func (x *Occurrence) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Occurrence.ProtoReflect.Descriptor instead.
+func (*Occurrence) Descriptor() ([]byte, []int) {
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Occurrence) GetDetectionId() string {
+	if x != nil {
+		return x.DetectionId
+	}
+	return ""
+}
+
+func (x *Occurrence) GetEventTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EventTime
+	}
+	return nil
+}
+
+func (x *Occurrence) GetFoldedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FoldedAt
+	}
+	return nil
+}
+
+type Occurrences struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AlertId       string                 `protobuf:"bytes,1,opt,name=alert_id,json=alertId,proto3" json:"alert_id,omitempty"`
+	Occurrences   []*Occurrence          `protobuf:"bytes,2,rep,name=occurrences,proto3" json:"occurrences,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Occurrences) Reset() {
+	*x = Occurrences{}
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Occurrences) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Occurrences) ProtoMessage() {}
+
+func (x *Occurrences) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Occurrences.ProtoReflect.Descriptor instead.
+func (*Occurrences) Descriptor() ([]byte, []int) {
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Occurrences) GetAlertId() string {
+	if x != nil {
+		return x.AlertId
+	}
+	return ""
+}
+
+func (x *Occurrences) GetOccurrences() []*Occurrence {
+	if x != nil {
+		return x.Occurrences
+	}
+	return nil
+}
+
+func (x *Occurrences) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
 // One thing somebody did to an alert. Append only: the trail is what makes a
 // state attributable, so nothing rewrites a line of it.
 type Transition struct {
@@ -366,7 +527,7 @@ type Transition struct {
 
 func (x *Transition) Reset() {
 	*x = Transition{}
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[2]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +539,7 @@ func (x *Transition) String() string {
 func (*Transition) ProtoMessage() {}
 
 func (x *Transition) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[2]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -391,7 +552,7 @@ func (x *Transition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transition.ProtoReflect.Descriptor instead.
 func (*Transition) Descriptor() ([]byte, []int) {
-	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{2}
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Transition) GetAlertId() string {
@@ -460,7 +621,7 @@ type History struct {
 
 func (x *History) Reset() {
 	*x = History{}
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[3]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -472,7 +633,7 @@ func (x *History) String() string {
 func (*History) ProtoMessage() {}
 
 func (x *History) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[3]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +646,7 @@ func (x *History) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use History.ProtoReflect.Descriptor instead.
 func (*History) Descriptor() ([]byte, []int) {
-	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{3}
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *History) GetAlertId() string {
@@ -521,7 +682,7 @@ type TransitionRequest struct {
 
 func (x *TransitionRequest) Reset() {
 	*x = TransitionRequest{}
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[4]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -533,7 +694,7 @@ func (x *TransitionRequest) String() string {
 func (*TransitionRequest) ProtoMessage() {}
 
 func (x *TransitionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[4]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -546,7 +707,7 @@ func (x *TransitionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionRequest.ProtoReflect.Descriptor instead.
 func (*TransitionRequest) Descriptor() ([]byte, []int) {
-	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{4}
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TransitionRequest) GetTo() State {
@@ -584,7 +745,7 @@ type AssignmentRequest struct {
 
 func (x *AssignmentRequest) Reset() {
 	*x = AssignmentRequest{}
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[5]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -596,7 +757,7 @@ func (x *AssignmentRequest) String() string {
 func (*AssignmentRequest) ProtoMessage() {}
 
 func (x *AssignmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[5]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -609,7 +770,7 @@ func (x *AssignmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssignmentRequest.ProtoReflect.Descriptor instead.
 func (*AssignmentRequest) Descriptor() ([]byte, []int) {
-	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{5}
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AssignmentRequest) GetAssignee() string {
@@ -661,7 +822,7 @@ type Query struct {
 
 func (x *Query) Reset() {
 	*x = Query{}
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[6]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +834,7 @@ func (x *Query) String() string {
 func (*Query) ProtoMessage() {}
 
 func (x *Query) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[6]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +847,7 @@ func (x *Query) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Query.ProtoReflect.Descriptor instead.
 func (*Query) Descriptor() ([]byte, []int) {
-	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{6}
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Query) GetRange() *v12.TimeRange {
@@ -756,7 +917,7 @@ type Page struct {
 
 func (x *Page) Reset() {
 	*x = Page{}
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[7]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +929,7 @@ func (x *Page) String() string {
 func (*Page) ProtoMessage() {}
 
 func (x *Page) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_alert_v1_alert_proto_msgTypes[7]
+	mi := &file_seagull_alert_v1_alert_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +942,7 @@ func (x *Page) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Page.ProtoReflect.Descriptor instead.
 func (*Page) Descriptor() ([]byte, []int) {
-	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{7}
+	return file_seagull_alert_v1_alert_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Page) GetAlerts() []*Alert {
@@ -807,7 +968,7 @@ const file_seagull_alert_v1_alert_proto_rawDesc = "" +
 	"\x05state\x18\x01 \x01(\x0e2\x17.seagull.alert.v1.StateR\x05state\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1b\n" +
 	"\tclosed_by\x18\x03 \x01(\tR\bclosedBy\x127\n" +
-	"\tclosed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\xf8\x05\n" +
+	"\tclosed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"\xb7\a\n" +
 	"\x05Alert\x12\x19\n" +
 	"\balert_id\x18\x01 \x01(\tR\aalertId\x12%\n" +
 	"\x0eschema_version\x18\x02 \x01(\rR\rschemaVersion\x12\x1b\n" +
@@ -830,7 +991,23 @@ const file_seagull_alert_v1_alert_proto_rawDesc = "" +
 	"\n" +
 	"changed_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt\x12\x1a\n" +
 	"\brevision\x18\x10 \x01(\x04R\brevision\x123\n" +
-	"\aclosure\x18\x11 \x01(\v2\x19.seagull.alert.v1.ClosureR\aclosure\"\x8b\x02\n" +
+	"\aclosure\x18\x11 \x01(\v2\x19.seagull.alert.v1.ClosureR\aclosure\x12'\n" +
+	"\x0fcorrelation_key\x18\x12 \x01(\tR\x0ecorrelationKey\x12 \n" +
+	"\voccurrences\x18\x13 \x01(\x04R\voccurrences\x129\n" +
+	"\n" +
+	"first_seen\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tfirstSeen\x127\n" +
+	"\tlast_seen\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\"\xa3\x01\n" +
+	"\n" +
+	"Occurrence\x12!\n" +
+	"\fdetection_id\x18\x01 \x01(\tR\vdetectionId\x129\n" +
+	"\n" +
+	"event_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\teventTime\x127\n" +
+	"\tfolded_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bfoldedAt\"\x89\x01\n" +
+	"\vOccurrences\x12\x19\n" +
+	"\balert_id\x18\x01 \x01(\tR\aalertId\x12>\n" +
+	"\voccurrences\x18\x02 \x03(\v2\x1c.seagull.alert.v1.OccurrenceR\voccurrences\x12\x1f\n" +
+	"\vnext_cursor\x18\x03 \x01(\tR\n" +
+	"nextCursor\"\x8b\x02\n" +
 	"\n" +
 	"Transition\x12\x19\n" +
 	"\balert_id\x18\x01 \x01(\tR\aalertId\x12\x1a\n" +
@@ -891,50 +1068,57 @@ func file_seagull_alert_v1_alert_proto_rawDescGZIP() []byte {
 }
 
 var file_seagull_alert_v1_alert_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_seagull_alert_v1_alert_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_seagull_alert_v1_alert_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_seagull_alert_v1_alert_proto_goTypes = []any{
 	(State)(0),                    // 0: seagull.alert.v1.State
 	(*Closure)(nil),               // 1: seagull.alert.v1.Closure
 	(*Alert)(nil),                 // 2: seagull.alert.v1.Alert
-	(*Transition)(nil),            // 3: seagull.alert.v1.Transition
-	(*History)(nil),               // 4: seagull.alert.v1.History
-	(*TransitionRequest)(nil),     // 5: seagull.alert.v1.TransitionRequest
-	(*AssignmentRequest)(nil),     // 6: seagull.alert.v1.AssignmentRequest
-	(*Query)(nil),                 // 7: seagull.alert.v1.Query
-	(*Page)(nil),                  // 8: seagull.alert.v1.Page
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*v1.Rule)(nil),               // 10: seagull.detection.v1.Rule
-	(v1.Severity)(0),              // 11: seagull.detection.v1.Severity
-	(*v1.Technique)(nil),          // 12: seagull.detection.v1.Technique
-	(v11.EventClass)(0),           // 13: seagull.event.v1.EventClass
-	(*v12.TimeRange)(nil),         // 14: seagull.hunt.v1.TimeRange
+	(*Occurrence)(nil),            // 3: seagull.alert.v1.Occurrence
+	(*Occurrences)(nil),           // 4: seagull.alert.v1.Occurrences
+	(*Transition)(nil),            // 5: seagull.alert.v1.Transition
+	(*History)(nil),               // 6: seagull.alert.v1.History
+	(*TransitionRequest)(nil),     // 7: seagull.alert.v1.TransitionRequest
+	(*AssignmentRequest)(nil),     // 8: seagull.alert.v1.AssignmentRequest
+	(*Query)(nil),                 // 9: seagull.alert.v1.Query
+	(*Page)(nil),                  // 10: seagull.alert.v1.Page
+	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*v1.Rule)(nil),               // 12: seagull.detection.v1.Rule
+	(v1.Severity)(0),              // 13: seagull.detection.v1.Severity
+	(*v1.Technique)(nil),          // 14: seagull.detection.v1.Technique
+	(v11.EventClass)(0),           // 15: seagull.event.v1.EventClass
+	(*v12.TimeRange)(nil),         // 16: seagull.hunt.v1.TimeRange
 }
 var file_seagull_alert_v1_alert_proto_depIdxs = []int32{
 	0,  // 0: seagull.alert.v1.Closure.state:type_name -> seagull.alert.v1.State
-	9,  // 1: seagull.alert.v1.Closure.closed_at:type_name -> google.protobuf.Timestamp
-	10, // 2: seagull.alert.v1.Alert.rule:type_name -> seagull.detection.v1.Rule
-	11, // 3: seagull.alert.v1.Alert.severity:type_name -> seagull.detection.v1.Severity
-	12, // 4: seagull.alert.v1.Alert.technique:type_name -> seagull.detection.v1.Technique
-	13, // 5: seagull.alert.v1.Alert.event_class:type_name -> seagull.event.v1.EventClass
-	9,  // 6: seagull.alert.v1.Alert.event_time:type_name -> google.protobuf.Timestamp
-	9,  // 7: seagull.alert.v1.Alert.raised_at:type_name -> google.protobuf.Timestamp
+	11, // 1: seagull.alert.v1.Closure.closed_at:type_name -> google.protobuf.Timestamp
+	12, // 2: seagull.alert.v1.Alert.rule:type_name -> seagull.detection.v1.Rule
+	13, // 3: seagull.alert.v1.Alert.severity:type_name -> seagull.detection.v1.Severity
+	14, // 4: seagull.alert.v1.Alert.technique:type_name -> seagull.detection.v1.Technique
+	15, // 5: seagull.alert.v1.Alert.event_class:type_name -> seagull.event.v1.EventClass
+	11, // 6: seagull.alert.v1.Alert.event_time:type_name -> google.protobuf.Timestamp
+	11, // 7: seagull.alert.v1.Alert.raised_at:type_name -> google.protobuf.Timestamp
 	0,  // 8: seagull.alert.v1.Alert.state:type_name -> seagull.alert.v1.State
-	9,  // 9: seagull.alert.v1.Alert.changed_at:type_name -> google.protobuf.Timestamp
+	11, // 9: seagull.alert.v1.Alert.changed_at:type_name -> google.protobuf.Timestamp
 	1,  // 10: seagull.alert.v1.Alert.closure:type_name -> seagull.alert.v1.Closure
-	0,  // 11: seagull.alert.v1.Transition.from:type_name -> seagull.alert.v1.State
-	0,  // 12: seagull.alert.v1.Transition.to:type_name -> seagull.alert.v1.State
-	9,  // 13: seagull.alert.v1.Transition.at:type_name -> google.protobuf.Timestamp
-	3,  // 14: seagull.alert.v1.History.transitions:type_name -> seagull.alert.v1.Transition
-	0,  // 15: seagull.alert.v1.TransitionRequest.to:type_name -> seagull.alert.v1.State
-	14, // 16: seagull.alert.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
-	0,  // 17: seagull.alert.v1.Query.states:type_name -> seagull.alert.v1.State
-	11, // 18: seagull.alert.v1.Query.severities:type_name -> seagull.detection.v1.Severity
-	2,  // 19: seagull.alert.v1.Page.alerts:type_name -> seagull.alert.v1.Alert
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	11, // 11: seagull.alert.v1.Alert.first_seen:type_name -> google.protobuf.Timestamp
+	11, // 12: seagull.alert.v1.Alert.last_seen:type_name -> google.protobuf.Timestamp
+	11, // 13: seagull.alert.v1.Occurrence.event_time:type_name -> google.protobuf.Timestamp
+	11, // 14: seagull.alert.v1.Occurrence.folded_at:type_name -> google.protobuf.Timestamp
+	3,  // 15: seagull.alert.v1.Occurrences.occurrences:type_name -> seagull.alert.v1.Occurrence
+	0,  // 16: seagull.alert.v1.Transition.from:type_name -> seagull.alert.v1.State
+	0,  // 17: seagull.alert.v1.Transition.to:type_name -> seagull.alert.v1.State
+	11, // 18: seagull.alert.v1.Transition.at:type_name -> google.protobuf.Timestamp
+	5,  // 19: seagull.alert.v1.History.transitions:type_name -> seagull.alert.v1.Transition
+	0,  // 20: seagull.alert.v1.TransitionRequest.to:type_name -> seagull.alert.v1.State
+	16, // 21: seagull.alert.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
+	0,  // 22: seagull.alert.v1.Query.states:type_name -> seagull.alert.v1.State
+	13, // 23: seagull.alert.v1.Query.severities:type_name -> seagull.detection.v1.Severity
+	2,  // 24: seagull.alert.v1.Page.alerts:type_name -> seagull.alert.v1.Alert
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_seagull_alert_v1_alert_proto_init() }
@@ -948,7 +1132,7 @@ func file_seagull_alert_v1_alert_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_alert_v1_alert_proto_rawDesc), len(file_seagull_alert_v1_alert_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
