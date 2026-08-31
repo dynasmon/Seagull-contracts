@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package seagull.alert.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/detection/v1/detection.proto";
+import "seagull/event/v1/event.proto";
+import "seagull/hunt/v1/hunt.proto";
+
+// Where an alert is in an operator's hands. A closed set, because a transition
+// is refused against it and a state nobody declared is an alert nobody can
+// close.
+//
+// RESOLVED and FALSE_POSITIVE are both endings and they do not mean the same
+// thing: the first says the platform was right and somebody dealt with it, the
+// second says the platform was wrong. Collapsing them loses the only signal a
+// rule author has that a rule needs tuning.
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_OPEN = 1;
+  STATE_ACKNOWLEDGED = 2;
+  STATE_IN_INVESTIGATION = 3;
+  STATE_RESOLVED = 4;
+  STATE_FALSE_POSITIVE = 5;
+}
+
+// Why an alert was closed, and by whom. A false positive carries its reason
+// because that reason is what a rule is corrected from.
+message Closure {
+  State state = 1;
+  string reason = 2;
+  string closed_by = 3;
+  google.protobuf.Timestamp closed_at = 4;
+}
+
+// What the platform found, and what people have done about it since.
+//
+// The first half is copied from the detection that raised it and never changes;
+// the second half is a person's and changes without the detection moving. A
+// replay of the analytical stream rewrites nothing here, which is what keeps
+// somebody's triage safe from a reprocessed batch.
+message Alert {
+  // The detection this is about. One alert per detection, so re-deciding the
+  // same events against the same rule finds the alert that already exists
+  // rather than raising a second one.
+  string alert_id = 1;
+  uint32 schema_version = 2;
+
+  string tenant_id = 3;
+  string detection_id = 4;
+
+  seagull.detection.v1.Rule rule = 5;
+  seagull.detection.v1.Severity severity = 6;
+  seagull.detection.v1.Technique technique = 7;
+  seagull.event.v1.EventClass event_class = 8;
+  string agent_id = 9;
+
+  // When the thing happened, and when the platform put it in front of a person.
+  google.protobuf.Timestamp event_time = 10;
+  google.protobuf.Timestamp raised_at = 11;
+
+  State state = 12;
+  string assignee = 13;
+
+  // Who last moved it and when. The whole trail is a separate read: this is the
+  // last line of it, carried so a list does not need one query per row.
+  string changed_by = 14;
+  google.protobuf.Timestamp changed_at = 15;
+
+  // Moves by one on every transition, and a caller may say which revision it
+  // believed it was acting on. Two analysts acting at once means the second is
+  // told the alert moved rather than quietly overwriting the first.
+  uint64 revision = 16;
+
+  Closure closure = 17;
+}
+
+// One thing somebody did to an alert. Append only: the trail is what makes a
+// state attributable, so nothing rewrites a line of it.
+message Transition {
+  string alert_id = 1;
+  uint64 revision = 2;
+  State from = 3;
+  State to = 4;
+  string assignee = 5;
+  string actor = 6;
+  google.protobuf.Timestamp at = 7;
+  string note = 8;
+}
+
+message History {
+  string alert_id = 1;
+  repeated Transition transitions = 2;
+}
+
+// Asking for a state. The state asked for is the whole request: which
+// transitions are legal is the server's to decide, and a caller that names an
+// illegal one is refused rather than corrected.
+message TransitionRequest {
+  State to = 1;
+
+  // Required when closing as a false positive and when reopening: both say the
+  // platform or an earlier decision was wrong, and neither is worth recording
+  // without the why.
+  string note = 2;
+
+  // Zero acts on whatever the alert currently is. Otherwise the revision the
+  // caller believed it was acting on, and a mismatch is refused.
+  uint64 expected_revision = 3;
+}
+
+// An empty assignee gives the alert back. Assigning does not change the state:
+// somebody owning an open alert and somebody having acknowledged it are
+// different facts.
+message AssignmentRequest {
+  string assignee = 1;
+  string note = 2;
+  uint64 expected_revision = 3;
+}
+
+// What a person asks of the alerts they may see. Narrow on purpose: alerts are
+// few next to the telemetry behind them, and the question an operator asks is
+// some of "mine", "still open" and "recent".
+//
+// An empty list is not a filter and never a wildcard denial: it asks about
+// every value of that field, within the tenants the caller holds.
+message Query {
+  // Over raised_at, and optional: an alert list is small enough to answer
+  // without one, which a telemetry hunt is not.
+  seagull.hunt.v1.TimeRange range = 1;
+
+  repeated State states = 2;
+  repeated seagull.detection.v1.Severity severities = 3;
+  string assignee = 4;
+  string rule_id = 5;
+  string agent_id = 6;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 7;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged: it is the server's own token and is not composed by a
+  // caller.
+  string cursor = 8;
+}
+
+// Newest first. An empty `next_cursor` means there is nothing further.
+message Page {
+  repeated Alert alerts = 1;
+  string next_cursor = 2;
+}

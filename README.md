@@ -17,6 +17,7 @@ proto/seagull/detection/v1/    what the rules decided about an event
 proto/seagull/hunt/v1/         what a person may ask of what was stored
 proto/seagull/control/v1/      who a caller is and what they may do
 proto/seagull/ruleset/v1/      the rules a platform runs, and which set of them
+proto/seagull/alert/v1/        what an operator does about what the rules found
 gen/go/                        generated Go, committed
 ```
 
@@ -71,6 +72,20 @@ A published ruleset is immutable and named by its own content. `Record` is what
 the ruleset topic carries — every version under its own id, and one pointer
 naming the version to run — so activating an older version asks for exactly what
 ran before rather than for a reconstruction of it.
+
+## The alert
+
+A detection states what the platform found; an alert is what a person does about
+it. They are separate messages because they have separate owners: the analytical
+half of an alert is copied from the detection that raised it and never changes,
+and the operational half — its state, who holds it, why it was closed — changes
+without the detection moving.
+
+An alert is named by the detection it is about, so re-deciding the same events
+against the same rule finds the alert that already exists rather than raising a
+second one. `State` is closed and `RESOLVED` is not `FALSE_POSITIVE`: the first
+says the platform was right, the second says it was wrong, and only the second
+tells a rule author that a rule needs correcting.
 
 ## The acknowledgement
 
