@@ -10,6 +10,7 @@ import (
 	v1 "github.com/dynasmon/Seagull-contracts/gen/go/seagull/event/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -349,6 +350,164 @@ func (x *Evidence) GetAbsent() bool {
 	return false
 }
 
+// One field a counting rule groups by, and what the events it counted held in
+// it. An absent field is its own group: events carrying no source address are
+// not counted alongside every address that was named.
+type Grouping struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Absent        bool                   `protobuf:"varint,3,opt,name=absent,proto3" json:"absent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Grouping) Reset() {
+	*x = Grouping{}
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Grouping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Grouping) ProtoMessage() {}
+
+func (x *Grouping) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Grouping.ProtoReflect.Descriptor instead.
+func (*Grouping) Descriptor() ([]byte, []int) {
+	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Grouping) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *Grouping) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *Grouping) GetAbsent() bool {
+	if x != nil {
+		return x.Absent
+	}
+	return false
+}
+
+// What a counting rule found, and nothing a rule deciding one event at a time
+// can say. It is carried because the finding is the count: a detection reading
+// "a failed password" and one reading "twenty failed passwords from one address
+// in a minute" are different pieces of work, and only this tells them apart.
+type Aggregation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What the window held when this was decided, and what the rule asked for.
+	// Both, because a count means nothing without the threshold it crossed.
+	Count     uint32 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	Threshold uint32 `protobuf:"varint,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	// How far back the rule was told to look, and the oldest event still inside
+	// the window. With `event_time`, which is the newest, the two bound the
+	// activity that was counted.
+	Window         *durationpb.Duration   `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	FirstEventTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=first_event_time,json=firstEventTime,proto3" json:"first_event_time,omitempty"`
+	// The window held as many events as it is allowed to, so `count` is a floor
+	// rather than a total.
+	Saturated     bool        `protobuf:"varint,5,opt,name=saturated,proto3" json:"saturated,omitempty"`
+	Group         []*Grouping `protobuf:"bytes,6,rep,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Aggregation) Reset() {
+	*x = Aggregation{}
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Aggregation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Aggregation) ProtoMessage() {}
+
+func (x *Aggregation) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Aggregation.ProtoReflect.Descriptor instead.
+func (*Aggregation) Descriptor() ([]byte, []int) {
+	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Aggregation) GetCount() uint32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *Aggregation) GetThreshold() uint32 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
+}
+
+func (x *Aggregation) GetWindow() *durationpb.Duration {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *Aggregation) GetFirstEventTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FirstEventTime
+	}
+	return nil
+}
+
+func (x *Aggregation) GetSaturated() bool {
+	if x != nil {
+		return x.Saturated
+	}
+	return false
+}
+
+func (x *Aggregation) GetGroup() []*Grouping {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
 // The result of analytical logic matching evidence.
 //
 // A detection is not an alert. It carries no status, no assignee and no
@@ -376,16 +535,20 @@ type Detection struct {
 	// When the thing happened, taken from the events it was decided from, and
 	// when the platform decided it. The first places a detection on a timeline;
 	// the second says when this evaluation ran and is not part of its identity.
-	EventTime     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=event_time,json=eventTime,proto3" json:"event_time,omitempty"`
-	DetectedTime  *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=detected_time,json=detectedTime,proto3" json:"detected_time,omitempty"`
-	Evidence      []*Evidence            `protobuf:"bytes,12,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	EventTime    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=event_time,json=eventTime,proto3" json:"event_time,omitempty"`
+	DetectedTime *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=detected_time,json=detectedTime,proto3" json:"detected_time,omitempty"`
+	Evidence     []*Evidence            `protobuf:"bytes,12,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	// What a counting rule counted, absent when the rule decides one event at a
+	// time. The events named above are what this detection is identified by;
+	// this is what they were counted against.
+	Aggregation   *Aggregation `protobuf:"bytes,13,opt,name=aggregation,proto3" json:"aggregation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Detection) Reset() {
 	*x = Detection{}
-	mi := &file_seagull_detection_v1_detection_proto_msgTypes[4]
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +560,7 @@ func (x *Detection) String() string {
 func (*Detection) ProtoMessage() {}
 
 func (x *Detection) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_detection_v1_detection_proto_msgTypes[4]
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +573,7 @@ func (x *Detection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Detection.ProtoReflect.Descriptor instead.
 func (*Detection) Descriptor() ([]byte, []int) {
-	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{4}
+	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Detection) GetDetectionId() string {
@@ -497,11 +660,18 @@ func (x *Detection) GetEvidence() []*Evidence {
 	return nil
 }
 
+func (x *Detection) GetAggregation() *Aggregation {
+	if x != nil {
+		return x.Aggregation
+	}
+	return nil
+}
+
 var File_seagull_detection_v1_detection_proto protoreflect.FileDescriptor
 
 const file_seagull_detection_v1_detection_proto_rawDesc = "" +
 	"\n" +
-	"$seagull/detection/v1/detection.proto\x12\x14seagull.detection.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cseagull/event/v1/event.proto\"|\n" +
+	"$seagull/detection/v1/detection.proto\x12\x14seagull.detection.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cseagull/event/v1/event.proto\"|\n" +
 	"\x04Rule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\rR\brevision\x12\x12\n" +
@@ -521,7 +691,18 @@ const file_seagull_detection_v1_detection_proto_rawDesc = "" +
 	"\boperator\x18\x02 \x01(\tR\boperator\x12\x18\n" +
 	"\anegated\x18\x03 \x01(\bR\anegated\x12\x12\n" +
 	"\x04held\x18\x04 \x01(\tR\x04held\x12\x16\n" +
-	"\x06absent\x18\x05 \x01(\bR\x06absent\"\xf2\x04\n" +
+	"\x06absent\x18\x05 \x01(\bR\x06absent\"N\n" +
+	"\bGrouping\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12\x16\n" +
+	"\x06absent\x18\x03 \x01(\bR\x06absent\"\x8e\x02\n" +
+	"\vAggregation\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\rR\x05count\x12\x1c\n" +
+	"\tthreshold\x18\x02 \x01(\rR\tthreshold\x121\n" +
+	"\x06window\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12D\n" +
+	"\x10first_event_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0efirstEventTime\x12\x1c\n" +
+	"\tsaturated\x18\x05 \x01(\bR\tsaturated\x124\n" +
+	"\x05group\x18\x06 \x03(\v2\x1e.seagull.detection.v1.GroupingR\x05group\"\xb7\x05\n" +
 	"\tDetection\x12!\n" +
 	"\fdetection_id\x18\x01 \x01(\tR\vdetectionId\x12%\n" +
 	"\x0eschema_version\x18\x02 \x01(\rR\rschemaVersion\x12.\n" +
@@ -538,7 +719,8 @@ const file_seagull_detection_v1_detection_proto_rawDesc = "" +
 	"event_time\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\teventTime\x12?\n" +
 	"\rdetected_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\fdetectedTime\x12:\n" +
-	"\bevidence\x18\f \x03(\v2\x1e.seagull.detection.v1.EvidenceR\bevidence*u\n" +
+	"\bevidence\x18\f \x03(\v2\x1e.seagull.detection.v1.EvidenceR\bevidence\x12C\n" +
+	"\vaggregation\x18\r \x01(\v2!.seagull.detection.v1.AggregationR\vaggregation*u\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSEVERITY_LOW\x10\x01\x12\x13\n" +
@@ -560,33 +742,40 @@ func file_seagull_detection_v1_detection_proto_rawDescGZIP() []byte {
 }
 
 var file_seagull_detection_v1_detection_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_seagull_detection_v1_detection_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_seagull_detection_v1_detection_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_seagull_detection_v1_detection_proto_goTypes = []any{
 	(Severity)(0),                 // 0: seagull.detection.v1.Severity
 	(*Rule)(nil),                  // 1: seagull.detection.v1.Rule
 	(*Source)(nil),                // 2: seagull.detection.v1.Source
 	(*Technique)(nil),             // 3: seagull.detection.v1.Technique
 	(*Evidence)(nil),              // 4: seagull.detection.v1.Evidence
-	(*Detection)(nil),             // 5: seagull.detection.v1.Detection
-	(v1.EventClass)(0),            // 6: seagull.event.v1.EventClass
-	(*v1.Origin)(nil),             // 7: seagull.event.v1.Origin
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(*Grouping)(nil),              // 5: seagull.detection.v1.Grouping
+	(*Aggregation)(nil),           // 6: seagull.detection.v1.Aggregation
+	(*Detection)(nil),             // 7: seagull.detection.v1.Detection
+	(*durationpb.Duration)(nil),   // 8: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(v1.EventClass)(0),            // 10: seagull.event.v1.EventClass
+	(*v1.Origin)(nil),             // 11: seagull.event.v1.Origin
 }
 var file_seagull_detection_v1_detection_proto_depIdxs = []int32{
-	2, // 0: seagull.detection.v1.Rule.source:type_name -> seagull.detection.v1.Source
-	1, // 1: seagull.detection.v1.Detection.rule:type_name -> seagull.detection.v1.Rule
-	0, // 2: seagull.detection.v1.Detection.severity:type_name -> seagull.detection.v1.Severity
-	3, // 3: seagull.detection.v1.Detection.technique:type_name -> seagull.detection.v1.Technique
-	6, // 4: seagull.detection.v1.Detection.event_class:type_name -> seagull.event.v1.EventClass
-	7, // 5: seagull.detection.v1.Detection.origin:type_name -> seagull.event.v1.Origin
-	8, // 6: seagull.detection.v1.Detection.event_time:type_name -> google.protobuf.Timestamp
-	8, // 7: seagull.detection.v1.Detection.detected_time:type_name -> google.protobuf.Timestamp
-	4, // 8: seagull.detection.v1.Detection.evidence:type_name -> seagull.detection.v1.Evidence
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	2,  // 0: seagull.detection.v1.Rule.source:type_name -> seagull.detection.v1.Source
+	8,  // 1: seagull.detection.v1.Aggregation.window:type_name -> google.protobuf.Duration
+	9,  // 2: seagull.detection.v1.Aggregation.first_event_time:type_name -> google.protobuf.Timestamp
+	5,  // 3: seagull.detection.v1.Aggregation.group:type_name -> seagull.detection.v1.Grouping
+	1,  // 4: seagull.detection.v1.Detection.rule:type_name -> seagull.detection.v1.Rule
+	0,  // 5: seagull.detection.v1.Detection.severity:type_name -> seagull.detection.v1.Severity
+	3,  // 6: seagull.detection.v1.Detection.technique:type_name -> seagull.detection.v1.Technique
+	10, // 7: seagull.detection.v1.Detection.event_class:type_name -> seagull.event.v1.EventClass
+	11, // 8: seagull.detection.v1.Detection.origin:type_name -> seagull.event.v1.Origin
+	9,  // 9: seagull.detection.v1.Detection.event_time:type_name -> google.protobuf.Timestamp
+	9,  // 10: seagull.detection.v1.Detection.detected_time:type_name -> google.protobuf.Timestamp
+	4,  // 11: seagull.detection.v1.Detection.evidence:type_name -> seagull.detection.v1.Evidence
+	6,  // 12: seagull.detection.v1.Detection.aggregation:type_name -> seagull.detection.v1.Aggregation
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_seagull_detection_v1_detection_proto_init() }
@@ -600,7 +789,7 @@ func file_seagull_detection_v1_detection_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_detection_v1_detection_proto_rawDesc), len(file_seagull_detection_v1_detection_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
