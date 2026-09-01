@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package seagull.ruleset.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "seagull/detection/v1/detection.proto";
 import "seagull/event/v1/event.proto";
@@ -74,6 +75,21 @@ message Case {
   seagull.detection.v1.Severity severity = 6;
 }
 
+// What a rule counts before it decides anything. A rule without one answers
+// for each event on its own; a rule with one answers for how many matching
+// events shared a group inside a window, so the same match becomes a different
+// security statement.
+message Count {
+  uint32 at_least = 1;
+  google.protobuf.Duration within = 2;
+
+  // What makes two matching events the same thing being counted, named the way
+  // a rule names any other field. The tenant is always part of the grouping and
+  // is never written here: a count that could span one is a number somebody
+  // could read past.
+  repeated string group_by = 3;
+}
+
 // A detection rule as it crosses a runtime boundary. The document somebody
 // wrote it in stays with the control plane that read it: what reaches an engine
 // is the rule, so a process that runs rules never learns a file format.
@@ -93,6 +109,9 @@ message Rule {
   repeated string tags = 13;
   repeated string references = 14;
   repeated Case cases = 15;
+
+  // Absent on a rule that decides one event at a time, which is most of them.
+  Count count = 16;
 }
 
 // A published ruleset: immutable, and named by what is in it. Whoever reads one
