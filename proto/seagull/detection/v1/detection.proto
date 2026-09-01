@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package seagull.detection.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "seagull/event/v1/event.proto";
 
@@ -55,6 +56,38 @@ message Evidence {
   bool absent = 5;
 }
 
+// One field a counting rule groups by, and what the events it counted held in
+// it. An absent field is its own group: events carrying no source address are
+// not counted alongside every address that was named.
+message Grouping {
+  string field = 1;
+  string value = 2;
+  bool absent = 3;
+}
+
+// What a counting rule found, and nothing a rule deciding one event at a time
+// can say. It is carried because the finding is the count: a detection reading
+// "a failed password" and one reading "twenty failed passwords from one address
+// in a minute" are different pieces of work, and only this tells them apart.
+message Aggregation {
+  // What the window held when this was decided, and what the rule asked for.
+  // Both, because a count means nothing without the threshold it crossed.
+  uint32 count = 1;
+  uint32 threshold = 2;
+
+  // How far back the rule was told to look, and the oldest event still inside
+  // the window. With `event_time`, which is the newest, the two bound the
+  // activity that was counted.
+  google.protobuf.Duration window = 3;
+  google.protobuf.Timestamp first_event_time = 4;
+
+  // The window held as many events as it is allowed to, so `count` is a floor
+  // rather than a total.
+  bool saturated = 5;
+
+  repeated Grouping group = 6;
+}
+
 // The result of analytical logic matching evidence.
 //
 // A detection is not an alert. It carries no status, no assignee and no
@@ -90,4 +123,9 @@ message Detection {
   google.protobuf.Timestamp detected_time = 11;
 
   repeated Evidence evidence = 12;
+
+  // What a counting rule counted, absent when the rule decides one event at a
+  // time. The events named above are what this detection is identified by;
+  // this is what they were counted against.
+  Aggregation aggregation = 13;
 }
