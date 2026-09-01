@@ -73,6 +73,12 @@ the ruleset topic carries — every version under its own id, and one pointer
 naming the version to run — so activating an older version asks for exactly what
 ran before rather than for a reconstruction of it.
 
+A rule may also carry a `Count`, which is what turns a match into a threshold:
+how many matching events, sharing which fields, inside which window. It travels
+with the rule because it is part of what the rule decides — a published ruleset
+that dropped it would run a different rule from the one somebody wrote — and
+`Aggregation` on the detection is what such a rule found.
+
 ## The alert
 
 A detection states what the platform found; an alert is what a person does about
