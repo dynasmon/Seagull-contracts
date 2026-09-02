@@ -508,6 +508,150 @@ func (x *Aggregation) GetGroup() []*Grouping {
 	return nil
 }
 
+// One stage of a sequence, and the event that satisfied it. Named rather than
+// numbered, because a sequence is a story and a reader should not have to fetch
+// the rule to learn what its third step was.
+type Stage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventTime     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=event_time,json=eventTime,proto3" json:"event_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Stage) Reset() {
+	*x = Stage{}
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Stage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Stage) ProtoMessage() {}
+
+func (x *Stage) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Stage.ProtoReflect.Descriptor instead.
+func (*Stage) Descriptor() ([]byte, []int) {
+	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Stage) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Stage) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *Stage) GetEventTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EventTime
+	}
+	return nil
+}
+
+// What an ordered sequence of events came to, and nothing a rule deciding one
+// event at a time can say. A detection reading "a successful login" and one
+// reading "a successful login after twenty failures from the same address"
+// are different pieces of work, and only this tells them apart.
+type Correlation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One per stage, in the order the rule declares them, each naming the event
+	// that satisfied it. The events are also carried in `source_event_ids`; this
+	// says which of them played which part.
+	Stages []*Stage `protobuf:"bytes,1,rep,name=stages,proto3" json:"stages,omitempty"`
+	// How far back the rule was told to look. The span the events actually
+	// covered is the difference between the first and last stage above.
+	Window *durationpb.Duration `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
+	// How much the clocks that timed this sequence disagreed, measured as the
+	// spread of `observed_time` against `ingest_time` across the events above.
+	// Ordering is decided in event time, which is the producer's clock, so a
+	// spread wider than the span means the order is not established by the data.
+	ClockSpread   *durationpb.Duration `protobuf:"bytes,3,opt,name=clock_spread,json=clockSpread,proto3" json:"clock_spread,omitempty"`
+	Group         []*Grouping          `protobuf:"bytes,4,rep,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Correlation) Reset() {
+	*x = Correlation{}
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Correlation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Correlation) ProtoMessage() {}
+
+func (x *Correlation) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Correlation.ProtoReflect.Descriptor instead.
+func (*Correlation) Descriptor() ([]byte, []int) {
+	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Correlation) GetStages() []*Stage {
+	if x != nil {
+		return x.Stages
+	}
+	return nil
+}
+
+func (x *Correlation) GetWindow() *durationpb.Duration {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *Correlation) GetClockSpread() *durationpb.Duration {
+	if x != nil {
+		return x.ClockSpread
+	}
+	return nil
+}
+
+func (x *Correlation) GetGroup() []*Grouping {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
 // The result of analytical logic matching evidence.
 //
 // A detection is not an alert. It carries no status, no assignee and no
@@ -541,14 +685,18 @@ type Detection struct {
 	// What a counting rule counted, absent when the rule decides one event at a
 	// time. The events named above are what this detection is identified by;
 	// this is what they were counted against.
-	Aggregation   *Aggregation `protobuf:"bytes,13,opt,name=aggregation,proto3" json:"aggregation,omitempty"`
+	Aggregation *Aggregation `protobuf:"bytes,13,opt,name=aggregation,proto3" json:"aggregation,omitempty"`
+	// What an ordered sequence found, absent on every other rule. The events
+	// named above are the ones that made the sequence; this says which stage each
+	// of them satisfied and how far the clocks that ordered them disagreed.
+	Correlation   *Correlation `protobuf:"bytes,14,opt,name=correlation,proto3" json:"correlation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Detection) Reset() {
 	*x = Detection{}
-	mi := &file_seagull_detection_v1_detection_proto_msgTypes[6]
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +708,7 @@ func (x *Detection) String() string {
 func (*Detection) ProtoMessage() {}
 
 func (x *Detection) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_detection_v1_detection_proto_msgTypes[6]
+	mi := &file_seagull_detection_v1_detection_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +721,7 @@ func (x *Detection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Detection.ProtoReflect.Descriptor instead.
 func (*Detection) Descriptor() ([]byte, []int) {
-	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{6}
+	return file_seagull_detection_v1_detection_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Detection) GetDetectionId() string {
@@ -667,6 +815,13 @@ func (x *Detection) GetAggregation() *Aggregation {
 	return nil
 }
 
+func (x *Detection) GetCorrelation() *Correlation {
+	if x != nil {
+		return x.Correlation
+	}
+	return nil
+}
+
 var File_seagull_detection_v1_detection_proto protoreflect.FileDescriptor
 
 const file_seagull_detection_v1_detection_proto_rawDesc = "" +
@@ -702,7 +857,17 @@ const file_seagull_detection_v1_detection_proto_rawDesc = "" +
 	"\x06window\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12D\n" +
 	"\x10first_event_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0efirstEventTime\x12\x1c\n" +
 	"\tsaturated\x18\x05 \x01(\bR\tsaturated\x124\n" +
-	"\x05group\x18\x06 \x03(\v2\x1e.seagull.detection.v1.GroupingR\x05group\"\xb7\x05\n" +
+	"\x05group\x18\x06 \x03(\v2\x1e.seagull.detection.v1.GroupingR\x05group\"q\n" +
+	"\x05Stage\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x129\n" +
+	"\n" +
+	"event_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\teventTime\"\xe9\x01\n" +
+	"\vCorrelation\x123\n" +
+	"\x06stages\x18\x01 \x03(\v2\x1b.seagull.detection.v1.StageR\x06stages\x121\n" +
+	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12<\n" +
+	"\fclock_spread\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vclockSpread\x124\n" +
+	"\x05group\x18\x04 \x03(\v2\x1e.seagull.detection.v1.GroupingR\x05group\"\xfc\x05\n" +
 	"\tDetection\x12!\n" +
 	"\fdetection_id\x18\x01 \x01(\tR\vdetectionId\x12%\n" +
 	"\x0eschema_version\x18\x02 \x01(\rR\rschemaVersion\x12.\n" +
@@ -720,7 +885,8 @@ const file_seagull_detection_v1_detection_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\teventTime\x12?\n" +
 	"\rdetected_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\fdetectedTime\x12:\n" +
 	"\bevidence\x18\f \x03(\v2\x1e.seagull.detection.v1.EvidenceR\bevidence\x12C\n" +
-	"\vaggregation\x18\r \x01(\v2!.seagull.detection.v1.AggregationR\vaggregation*u\n" +
+	"\vaggregation\x18\r \x01(\v2!.seagull.detection.v1.AggregationR\vaggregation\x12C\n" +
+	"\vcorrelation\x18\x0e \x01(\v2!.seagull.detection.v1.CorrelationR\vcorrelation*u\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSEVERITY_LOW\x10\x01\x12\x13\n" +
@@ -742,7 +908,7 @@ func file_seagull_detection_v1_detection_proto_rawDescGZIP() []byte {
 }
 
 var file_seagull_detection_v1_detection_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_seagull_detection_v1_detection_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_seagull_detection_v1_detection_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_seagull_detection_v1_detection_proto_goTypes = []any{
 	(Severity)(0),                 // 0: seagull.detection.v1.Severity
 	(*Rule)(nil),                  // 1: seagull.detection.v1.Rule
@@ -751,31 +917,39 @@ var file_seagull_detection_v1_detection_proto_goTypes = []any{
 	(*Evidence)(nil),              // 4: seagull.detection.v1.Evidence
 	(*Grouping)(nil),              // 5: seagull.detection.v1.Grouping
 	(*Aggregation)(nil),           // 6: seagull.detection.v1.Aggregation
-	(*Detection)(nil),             // 7: seagull.detection.v1.Detection
-	(*durationpb.Duration)(nil),   // 8: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(v1.EventClass)(0),            // 10: seagull.event.v1.EventClass
-	(*v1.Origin)(nil),             // 11: seagull.event.v1.Origin
+	(*Stage)(nil),                 // 7: seagull.detection.v1.Stage
+	(*Correlation)(nil),           // 8: seagull.detection.v1.Correlation
+	(*Detection)(nil),             // 9: seagull.detection.v1.Detection
+	(*durationpb.Duration)(nil),   // 10: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(v1.EventClass)(0),            // 12: seagull.event.v1.EventClass
+	(*v1.Origin)(nil),             // 13: seagull.event.v1.Origin
 }
 var file_seagull_detection_v1_detection_proto_depIdxs = []int32{
 	2,  // 0: seagull.detection.v1.Rule.source:type_name -> seagull.detection.v1.Source
-	8,  // 1: seagull.detection.v1.Aggregation.window:type_name -> google.protobuf.Duration
-	9,  // 2: seagull.detection.v1.Aggregation.first_event_time:type_name -> google.protobuf.Timestamp
+	10, // 1: seagull.detection.v1.Aggregation.window:type_name -> google.protobuf.Duration
+	11, // 2: seagull.detection.v1.Aggregation.first_event_time:type_name -> google.protobuf.Timestamp
 	5,  // 3: seagull.detection.v1.Aggregation.group:type_name -> seagull.detection.v1.Grouping
-	1,  // 4: seagull.detection.v1.Detection.rule:type_name -> seagull.detection.v1.Rule
-	0,  // 5: seagull.detection.v1.Detection.severity:type_name -> seagull.detection.v1.Severity
-	3,  // 6: seagull.detection.v1.Detection.technique:type_name -> seagull.detection.v1.Technique
-	10, // 7: seagull.detection.v1.Detection.event_class:type_name -> seagull.event.v1.EventClass
-	11, // 8: seagull.detection.v1.Detection.origin:type_name -> seagull.event.v1.Origin
-	9,  // 9: seagull.detection.v1.Detection.event_time:type_name -> google.protobuf.Timestamp
-	9,  // 10: seagull.detection.v1.Detection.detected_time:type_name -> google.protobuf.Timestamp
-	4,  // 11: seagull.detection.v1.Detection.evidence:type_name -> seagull.detection.v1.Evidence
-	6,  // 12: seagull.detection.v1.Detection.aggregation:type_name -> seagull.detection.v1.Aggregation
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	11, // 4: seagull.detection.v1.Stage.event_time:type_name -> google.protobuf.Timestamp
+	7,  // 5: seagull.detection.v1.Correlation.stages:type_name -> seagull.detection.v1.Stage
+	10, // 6: seagull.detection.v1.Correlation.window:type_name -> google.protobuf.Duration
+	10, // 7: seagull.detection.v1.Correlation.clock_spread:type_name -> google.protobuf.Duration
+	5,  // 8: seagull.detection.v1.Correlation.group:type_name -> seagull.detection.v1.Grouping
+	1,  // 9: seagull.detection.v1.Detection.rule:type_name -> seagull.detection.v1.Rule
+	0,  // 10: seagull.detection.v1.Detection.severity:type_name -> seagull.detection.v1.Severity
+	3,  // 11: seagull.detection.v1.Detection.technique:type_name -> seagull.detection.v1.Technique
+	12, // 12: seagull.detection.v1.Detection.event_class:type_name -> seagull.event.v1.EventClass
+	13, // 13: seagull.detection.v1.Detection.origin:type_name -> seagull.event.v1.Origin
+	11, // 14: seagull.detection.v1.Detection.event_time:type_name -> google.protobuf.Timestamp
+	11, // 15: seagull.detection.v1.Detection.detected_time:type_name -> google.protobuf.Timestamp
+	4,  // 16: seagull.detection.v1.Detection.evidence:type_name -> seagull.detection.v1.Evidence
+	6,  // 17: seagull.detection.v1.Detection.aggregation:type_name -> seagull.detection.v1.Aggregation
+	8,  // 18: seagull.detection.v1.Detection.correlation:type_name -> seagull.detection.v1.Correlation
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_seagull_detection_v1_detection_proto_init() }
@@ -789,7 +963,7 @@ func file_seagull_detection_v1_detection_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_detection_v1_detection_proto_rawDesc), len(file_seagull_detection_v1_detection_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
