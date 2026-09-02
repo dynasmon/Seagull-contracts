@@ -615,6 +615,128 @@ func (x *Count) GetGroupBy() []string {
 	return nil
 }
 
+// One step of an ordered sequence: a name a reader can follow, and the match
+// that satisfies it. A stage matches one event the way a rule without a
+// sequence matches one event, so nothing new is learned to read one.
+type Stage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Match         *Expression            `protobuf:"bytes,2,opt,name=match,proto3" json:"match,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Stage) Reset() {
+	*x = Stage{}
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Stage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Stage) ProtoMessage() {}
+
+func (x *Stage) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Stage.ProtoReflect.Descriptor instead.
+func (*Stage) Descriptor() ([]byte, []int) {
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *Stage) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Stage) GetMatch() *Expression {
+	if x != nil {
+		return x.Match
+	}
+	return nil
+}
+
+// An ordered story a rule detects, rather than a single event. The stages are
+// satisfied in the order they are written, in event time and inside one window,
+// by events that share a group. A rule carries this or a `match`, never both:
+// the stages are the match.
+type Sequence struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Stages []*Stage               `protobuf:"bytes,1,rep,name=stages,proto3" json:"stages,omitempty"`
+	Within *durationpb.Duration   `protobuf:"bytes,2,opt,name=within,proto3" json:"within,omitempty"`
+	// What makes two events part of the same story, named the way a rule names
+	// any other field. The tenant is always part of the grouping and is never
+	// written here, exactly as it is never written on a count.
+	GroupBy       []string `protobuf:"bytes,3,rep,name=group_by,json=groupBy,proto3" json:"group_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Sequence) Reset() {
+	*x = Sequence{}
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Sequence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sequence) ProtoMessage() {}
+
+func (x *Sequence) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sequence.ProtoReflect.Descriptor instead.
+func (*Sequence) Descriptor() ([]byte, []int) {
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Sequence) GetStages() []*Stage {
+	if x != nil {
+		return x.Stages
+	}
+	return nil
+}
+
+func (x *Sequence) GetWithin() *durationpb.Duration {
+	if x != nil {
+		return x.Within
+	}
+	return nil
+}
+
+func (x *Sequence) GetGroupBy() []string {
+	if x != nil {
+		return x.GroupBy
+	}
+	return nil
+}
+
 // A detection rule as it crosses a runtime boundary. The document somebody
 // wrote it in stays with the control plane that read it: what reaches an engine
 // is the rule, so a process that runs rules never learns a file format.
@@ -636,14 +758,17 @@ type Rule struct {
 	References     []string               `protobuf:"bytes,14,rep,name=references,proto3" json:"references,omitempty"`
 	Cases          []*Case                `protobuf:"bytes,15,rep,name=cases,proto3" json:"cases,omitempty"`
 	// Absent on a rule that decides one event at a time, which is most of them.
-	Count         *Count `protobuf:"bytes,16,opt,name=count,proto3" json:"count,omitempty"`
+	Count *Count `protobuf:"bytes,16,opt,name=count,proto3" json:"count,omitempty"`
+	// Absent on a rule that matches. A rule carries `match` or `sequence`: the
+	// stages of a sequence are what it matches with.
+	Sequence      *Sequence `protobuf:"bytes,17,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Rule) Reset() {
 	*x = Rule{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[6]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -655,7 +780,7 @@ func (x *Rule) String() string {
 func (*Rule) ProtoMessage() {}
 
 func (x *Rule) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[6]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -668,7 +793,7 @@ func (x *Rule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rule.ProtoReflect.Descriptor instead.
 func (*Rule) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{6}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Rule) GetId() string {
@@ -783,6 +908,13 @@ func (x *Rule) GetCount() *Count {
 	return nil
 }
 
+func (x *Rule) GetSequence() *Sequence {
+	if x != nil {
+		return x.Sequence
+	}
+	return nil
+}
+
 // A published ruleset: immutable, and named by what is in it. Whoever reads one
 // recomputes the id from the rules, so a record that does not name itself is
 // refused rather than run.
@@ -799,7 +931,7 @@ type Version struct {
 
 func (x *Version) Reset() {
 	*x = Version{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[7]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +943,7 @@ func (x *Version) String() string {
 func (*Version) ProtoMessage() {}
 
 func (x *Version) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[7]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +956,7 @@ func (x *Version) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Version.ProtoReflect.Descriptor instead.
 func (*Version) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{7}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Version) GetId() string {
@@ -877,7 +1009,7 @@ type Active struct {
 
 func (x *Active) Reset() {
 	*x = Active{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[8]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -889,7 +1021,7 @@ func (x *Active) String() string {
 func (*Active) ProtoMessage() {}
 
 func (x *Active) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[8]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -902,7 +1034,7 @@ func (x *Active) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Active.ProtoReflect.Descriptor instead.
 func (*Active) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{8}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Active) GetRulesetId() string {
@@ -948,7 +1080,7 @@ type Record struct {
 
 func (x *Record) Reset() {
 	*x = Record{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[9]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -960,7 +1092,7 @@ func (x *Record) String() string {
 func (*Record) ProtoMessage() {}
 
 func (x *Record) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[9]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -973,7 +1105,7 @@ func (x *Record) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Record.ProtoReflect.Descriptor instead.
 func (*Record) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{9}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Record) GetRecord() isRecord_Record {
@@ -1029,7 +1161,7 @@ type Document struct {
 
 func (x *Document) Reset() {
 	*x = Document{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[10]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +1173,7 @@ func (x *Document) String() string {
 func (*Document) ProtoMessage() {}
 
 func (x *Document) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[10]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +1186,7 @@ func (x *Document) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Document.ProtoReflect.Descriptor instead.
 func (*Document) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{10}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Document) GetName() string {
@@ -1086,7 +1218,7 @@ type Fault struct {
 
 func (x *Fault) Reset() {
 	*x = Fault{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[11]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +1230,7 @@ func (x *Fault) String() string {
 func (*Fault) ProtoMessage() {}
 
 func (x *Fault) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[11]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1111,7 +1243,7 @@ func (x *Fault) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Fault.ProtoReflect.Descriptor instead.
 func (*Fault) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{11}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Fault) GetSource() string {
@@ -1165,7 +1297,7 @@ type ValidationRequest struct {
 
 func (x *ValidationRequest) Reset() {
 	*x = ValidationRequest{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[12]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1177,7 +1309,7 @@ func (x *ValidationRequest) String() string {
 func (*ValidationRequest) ProtoMessage() {}
 
 func (x *ValidationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[12]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1190,7 +1322,7 @@ func (x *ValidationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationRequest.ProtoReflect.Descriptor instead.
 func (*ValidationRequest) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{12}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ValidationRequest) GetDocuments() []*Document {
@@ -1214,7 +1346,7 @@ type ValidationResponse struct {
 
 func (x *ValidationResponse) Reset() {
 	*x = ValidationResponse{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[13]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1226,7 +1358,7 @@ func (x *ValidationResponse) String() string {
 func (*ValidationResponse) ProtoMessage() {}
 
 func (x *ValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[13]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1239,7 +1371,7 @@ func (x *ValidationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationResponse.ProtoReflect.Descriptor instead.
 func (*ValidationResponse) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{13}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ValidationResponse) GetValid() bool {
@@ -1290,7 +1422,7 @@ type Unheld struct {
 
 func (x *Unheld) Reset() {
 	*x = Unheld{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[14]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1302,7 +1434,7 @@ func (x *Unheld) String() string {
 func (*Unheld) ProtoMessage() {}
 
 func (x *Unheld) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[14]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1315,7 +1447,7 @@ func (x *Unheld) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unheld.ProtoReflect.Descriptor instead.
 func (*Unheld) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{14}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Unheld) GetSource() string {
@@ -1355,7 +1487,7 @@ type CheckRequest struct {
 
 func (x *CheckRequest) Reset() {
 	*x = CheckRequest{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[15]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1367,7 +1499,7 @@ func (x *CheckRequest) String() string {
 func (*CheckRequest) ProtoMessage() {}
 
 func (x *CheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[15]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1380,7 +1512,7 @@ func (x *CheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckRequest.ProtoReflect.Descriptor instead.
 func (*CheckRequest) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{15}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CheckRequest) GetDocuments() []*Document {
@@ -1405,7 +1537,7 @@ type CheckResponse struct {
 
 func (x *CheckResponse) Reset() {
 	*x = CheckResponse{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[16]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1417,7 +1549,7 @@ func (x *CheckResponse) String() string {
 func (*CheckResponse) ProtoMessage() {}
 
 func (x *CheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[16]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1430,7 +1562,7 @@ func (x *CheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckResponse.ProtoReflect.Descriptor instead.
 func (*CheckResponse) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{16}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CheckResponse) GetHeld() bool {
@@ -1481,7 +1613,7 @@ type PublishRequest struct {
 
 func (x *PublishRequest) Reset() {
 	*x = PublishRequest{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[17]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1493,7 +1625,7 @@ func (x *PublishRequest) String() string {
 func (*PublishRequest) ProtoMessage() {}
 
 func (x *PublishRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[17]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1506,7 +1638,7 @@ func (x *PublishRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishRequest.ProtoReflect.Descriptor instead.
 func (*PublishRequest) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{17}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PublishRequest) GetDocuments() []*Document {
@@ -1535,7 +1667,7 @@ type PublishResponse struct {
 
 func (x *PublishResponse) Reset() {
 	*x = PublishResponse{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[18]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +1679,7 @@ func (x *PublishResponse) String() string {
 func (*PublishResponse) ProtoMessage() {}
 
 func (x *PublishResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[18]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +1692,7 @@ func (x *PublishResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishResponse.ProtoReflect.Descriptor instead.
 func (*PublishResponse) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{18}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *PublishResponse) GetRulesetId() string {
@@ -1601,7 +1733,7 @@ type ActivationRequest struct {
 
 func (x *ActivationRequest) Reset() {
 	*x = ActivationRequest{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[19]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1613,7 +1745,7 @@ func (x *ActivationRequest) String() string {
 func (*ActivationRequest) ProtoMessage() {}
 
 func (x *ActivationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[19]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1626,7 +1758,7 @@ func (x *ActivationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivationRequest.ProtoReflect.Descriptor instead.
 func (*ActivationRequest) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{19}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ActivationRequest) GetRulesetId() string {
@@ -1653,7 +1785,7 @@ type ActivationResponse struct {
 
 func (x *ActivationResponse) Reset() {
 	*x = ActivationResponse{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[20]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1665,7 +1797,7 @@ func (x *ActivationResponse) String() string {
 func (*ActivationResponse) ProtoMessage() {}
 
 func (x *ActivationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[20]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1678,7 +1810,7 @@ func (x *ActivationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivationResponse.ProtoReflect.Descriptor instead.
 func (*ActivationResponse) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{20}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ActivationResponse) GetActive() *Active {
@@ -1711,7 +1843,7 @@ type Summary struct {
 
 func (x *Summary) Reset() {
 	*x = Summary{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[21]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1723,7 +1855,7 @@ func (x *Summary) String() string {
 func (*Summary) ProtoMessage() {}
 
 func (x *Summary) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[21]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1736,7 +1868,7 @@ func (x *Summary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Summary.ProtoReflect.Descriptor instead.
 func (*Summary) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{21}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Summary) GetId() string {
@@ -1798,7 +1930,7 @@ type VersionList struct {
 
 func (x *VersionList) Reset() {
 	*x = VersionList{}
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[22]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1810,7 +1942,7 @@ func (x *VersionList) String() string {
 func (*VersionList) ProtoMessage() {}
 
 func (x *VersionList) ProtoReflect() protoreflect.Message {
-	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[22]
+	mi := &file_seagull_ruleset_v1_ruleset_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1823,7 +1955,7 @@ func (x *VersionList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VersionList.ProtoReflect.Descriptor instead.
 func (*VersionList) Descriptor() ([]byte, []int) {
-	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{22}
+	return file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *VersionList) GetVersions() []*Summary {
@@ -1877,7 +2009,14 @@ const file_seagull_ruleset_v1_ruleset_proto_rawDesc = "" +
 	"\x05Count\x12\x19\n" +
 	"\bat_least\x18\x01 \x01(\rR\aatLeast\x121\n" +
 	"\x06within\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06within\x12\x19\n" +
-	"\bgroup_by\x18\x03 \x03(\tR\agroupBy\"\x9c\x05\n" +
+	"\bgroup_by\x18\x03 \x03(\tR\agroupBy\"Q\n" +
+	"\x05Stage\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x124\n" +
+	"\x05match\x18\x02 \x01(\v2\x1e.seagull.ruleset.v1.ExpressionR\x05match\"\x8b\x01\n" +
+	"\bSequence\x121\n" +
+	"\x06stages\x18\x01 \x03(\v2\x19.seagull.ruleset.v1.StageR\x06stages\x121\n" +
+	"\x06within\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06within\x12\x19\n" +
+	"\bgroup_by\x18\x03 \x03(\tR\agroupBy\"\xd6\x05\n" +
 	"\x04Rule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\rR\brevision\x12\x12\n" +
@@ -1898,7 +2037,8 @@ const file_seagull_ruleset_v1_ruleset_proto_rawDesc = "" +
 	"references\x18\x0e \x03(\tR\n" +
 	"references\x12.\n" +
 	"\x05cases\x18\x0f \x03(\v2\x18.seagull.ruleset.v1.CaseR\x05cases\x12/\n" +
-	"\x05count\x18\x10 \x01(\v2\x19.seagull.ruleset.v1.CountR\x05count\"\xbf\x01\n" +
+	"\x05count\x18\x10 \x01(\v2\x19.seagull.ruleset.v1.CountR\x05count\x128\n" +
+	"\bsequence\x18\x11 \x01(\v2\x1c.seagull.ruleset.v1.SequenceR\bsequence\"\xbf\x01\n" +
 	"\aVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
 	"\x05rules\x18\x02 \x03(\v2\x18.seagull.ruleset.v1.RuleR\x05rules\x12!\n" +
@@ -2001,7 +2141,7 @@ func file_seagull_ruleset_v1_ruleset_proto_rawDescGZIP() []byte {
 }
 
 var file_seagull_ruleset_v1_ruleset_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_seagull_ruleset_v1_ruleset_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_seagull_ruleset_v1_ruleset_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_seagull_ruleset_v1_ruleset_proto_goTypes = []any{
 	(Status)(0),                   // 0: seagull.ruleset.v1.Status
 	(Expectation)(0),              // 1: seagull.ruleset.v1.Expectation
@@ -2011,30 +2151,32 @@ var file_seagull_ruleset_v1_ruleset_proto_goTypes = []any{
 	(*Expression)(nil),            // 5: seagull.ruleset.v1.Expression
 	(*Case)(nil),                  // 6: seagull.ruleset.v1.Case
 	(*Count)(nil),                 // 7: seagull.ruleset.v1.Count
-	(*Rule)(nil),                  // 8: seagull.ruleset.v1.Rule
-	(*Version)(nil),               // 9: seagull.ruleset.v1.Version
-	(*Active)(nil),                // 10: seagull.ruleset.v1.Active
-	(*Record)(nil),                // 11: seagull.ruleset.v1.Record
-	(*Document)(nil),              // 12: seagull.ruleset.v1.Document
-	(*Fault)(nil),                 // 13: seagull.ruleset.v1.Fault
-	(*ValidationRequest)(nil),     // 14: seagull.ruleset.v1.ValidationRequest
-	(*ValidationResponse)(nil),    // 15: seagull.ruleset.v1.ValidationResponse
-	(*Unheld)(nil),                // 16: seagull.ruleset.v1.Unheld
-	(*CheckRequest)(nil),          // 17: seagull.ruleset.v1.CheckRequest
-	(*CheckResponse)(nil),         // 18: seagull.ruleset.v1.CheckResponse
-	(*PublishRequest)(nil),        // 19: seagull.ruleset.v1.PublishRequest
-	(*PublishResponse)(nil),       // 20: seagull.ruleset.v1.PublishResponse
-	(*ActivationRequest)(nil),     // 21: seagull.ruleset.v1.ActivationRequest
-	(*ActivationResponse)(nil),    // 22: seagull.ruleset.v1.ActivationResponse
-	(*Summary)(nil),               // 23: seagull.ruleset.v1.Summary
-	(*VersionList)(nil),           // 24: seagull.ruleset.v1.VersionList
-	nil,                           // 25: seagull.ruleset.v1.Case.EventEntry
-	(v1.Severity)(0),              // 26: seagull.detection.v1.Severity
-	(*durationpb.Duration)(nil),   // 27: google.protobuf.Duration
-	(v11.EventClass)(0),           // 28: seagull.event.v1.EventClass
-	(*v1.Technique)(nil),          // 29: seagull.detection.v1.Technique
-	(*v1.Source)(nil),             // 30: seagull.detection.v1.Source
-	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
+	(*Stage)(nil),                 // 8: seagull.ruleset.v1.Stage
+	(*Sequence)(nil),              // 9: seagull.ruleset.v1.Sequence
+	(*Rule)(nil),                  // 10: seagull.ruleset.v1.Rule
+	(*Version)(nil),               // 11: seagull.ruleset.v1.Version
+	(*Active)(nil),                // 12: seagull.ruleset.v1.Active
+	(*Record)(nil),                // 13: seagull.ruleset.v1.Record
+	(*Document)(nil),              // 14: seagull.ruleset.v1.Document
+	(*Fault)(nil),                 // 15: seagull.ruleset.v1.Fault
+	(*ValidationRequest)(nil),     // 16: seagull.ruleset.v1.ValidationRequest
+	(*ValidationResponse)(nil),    // 17: seagull.ruleset.v1.ValidationResponse
+	(*Unheld)(nil),                // 18: seagull.ruleset.v1.Unheld
+	(*CheckRequest)(nil),          // 19: seagull.ruleset.v1.CheckRequest
+	(*CheckResponse)(nil),         // 20: seagull.ruleset.v1.CheckResponse
+	(*PublishRequest)(nil),        // 21: seagull.ruleset.v1.PublishRequest
+	(*PublishResponse)(nil),       // 22: seagull.ruleset.v1.PublishResponse
+	(*ActivationRequest)(nil),     // 23: seagull.ruleset.v1.ActivationRequest
+	(*ActivationResponse)(nil),    // 24: seagull.ruleset.v1.ActivationResponse
+	(*Summary)(nil),               // 25: seagull.ruleset.v1.Summary
+	(*VersionList)(nil),           // 26: seagull.ruleset.v1.VersionList
+	nil,                           // 27: seagull.ruleset.v1.Case.EventEntry
+	(v1.Severity)(0),              // 28: seagull.detection.v1.Severity
+	(*durationpb.Duration)(nil),   // 29: google.protobuf.Duration
+	(v11.EventClass)(0),           // 30: seagull.event.v1.EventClass
+	(*v1.Technique)(nil),          // 31: seagull.detection.v1.Technique
+	(*v1.Source)(nil),             // 32: seagull.detection.v1.Source
+	(*timestamppb.Timestamp)(nil), // 33: google.protobuf.Timestamp
 }
 var file_seagull_ruleset_v1_ruleset_proto_depIdxs = []int32{
 	2,  // 0: seagull.ruleset.v1.Predicate.values:type_name -> seagull.ruleset.v1.Value
@@ -2044,39 +2186,43 @@ var file_seagull_ruleset_v1_ruleset_proto_depIdxs = []int32{
 	4,  // 4: seagull.ruleset.v1.Expression.any:type_name -> seagull.ruleset.v1.Terms
 	5,  // 5: seagull.ruleset.v1.Expression.negated:type_name -> seagull.ruleset.v1.Expression
 	1,  // 6: seagull.ruleset.v1.Case.expect:type_name -> seagull.ruleset.v1.Expectation
-	25, // 7: seagull.ruleset.v1.Case.event:type_name -> seagull.ruleset.v1.Case.EventEntry
-	26, // 8: seagull.ruleset.v1.Case.severity:type_name -> seagull.detection.v1.Severity
-	27, // 9: seagull.ruleset.v1.Count.within:type_name -> google.protobuf.Duration
-	28, // 10: seagull.ruleset.v1.Rule.event_class:type_name -> seagull.event.v1.EventClass
-	5,  // 11: seagull.ruleset.v1.Rule.match:type_name -> seagull.ruleset.v1.Expression
-	26, // 12: seagull.ruleset.v1.Rule.severity:type_name -> seagull.detection.v1.Severity
-	0,  // 13: seagull.ruleset.v1.Rule.status:type_name -> seagull.ruleset.v1.Status
-	29, // 14: seagull.ruleset.v1.Rule.technique:type_name -> seagull.detection.v1.Technique
-	30, // 15: seagull.ruleset.v1.Rule.source:type_name -> seagull.detection.v1.Source
-	6,  // 16: seagull.ruleset.v1.Rule.cases:type_name -> seagull.ruleset.v1.Case
-	7,  // 17: seagull.ruleset.v1.Rule.count:type_name -> seagull.ruleset.v1.Count
-	8,  // 18: seagull.ruleset.v1.Version.rules:type_name -> seagull.ruleset.v1.Rule
-	31, // 19: seagull.ruleset.v1.Version.published_at:type_name -> google.protobuf.Timestamp
-	31, // 20: seagull.ruleset.v1.Active.activated_at:type_name -> google.protobuf.Timestamp
-	9,  // 21: seagull.ruleset.v1.Record.version:type_name -> seagull.ruleset.v1.Version
-	10, // 22: seagull.ruleset.v1.Record.active:type_name -> seagull.ruleset.v1.Active
-	12, // 23: seagull.ruleset.v1.ValidationRequest.documents:type_name -> seagull.ruleset.v1.Document
-	13, // 24: seagull.ruleset.v1.ValidationResponse.faults:type_name -> seagull.ruleset.v1.Fault
-	12, // 25: seagull.ruleset.v1.CheckRequest.documents:type_name -> seagull.ruleset.v1.Document
-	16, // 26: seagull.ruleset.v1.CheckResponse.unheld:type_name -> seagull.ruleset.v1.Unheld
-	12, // 27: seagull.ruleset.v1.PublishRequest.documents:type_name -> seagull.ruleset.v1.Document
-	15, // 28: seagull.ruleset.v1.PublishResponse.validation:type_name -> seagull.ruleset.v1.ValidationResponse
-	18, // 29: seagull.ruleset.v1.PublishResponse.check:type_name -> seagull.ruleset.v1.CheckResponse
-	10, // 30: seagull.ruleset.v1.ActivationResponse.active:type_name -> seagull.ruleset.v1.Active
-	31, // 31: seagull.ruleset.v1.Summary.published_at:type_name -> google.protobuf.Timestamp
-	23, // 32: seagull.ruleset.v1.VersionList.versions:type_name -> seagull.ruleset.v1.Summary
-	10, // 33: seagull.ruleset.v1.VersionList.active:type_name -> seagull.ruleset.v1.Active
-	2,  // 34: seagull.ruleset.v1.Case.EventEntry.value:type_name -> seagull.ruleset.v1.Value
-	35, // [35:35] is the sub-list for method output_type
-	35, // [35:35] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	27, // 7: seagull.ruleset.v1.Case.event:type_name -> seagull.ruleset.v1.Case.EventEntry
+	28, // 8: seagull.ruleset.v1.Case.severity:type_name -> seagull.detection.v1.Severity
+	29, // 9: seagull.ruleset.v1.Count.within:type_name -> google.protobuf.Duration
+	5,  // 10: seagull.ruleset.v1.Stage.match:type_name -> seagull.ruleset.v1.Expression
+	8,  // 11: seagull.ruleset.v1.Sequence.stages:type_name -> seagull.ruleset.v1.Stage
+	29, // 12: seagull.ruleset.v1.Sequence.within:type_name -> google.protobuf.Duration
+	30, // 13: seagull.ruleset.v1.Rule.event_class:type_name -> seagull.event.v1.EventClass
+	5,  // 14: seagull.ruleset.v1.Rule.match:type_name -> seagull.ruleset.v1.Expression
+	28, // 15: seagull.ruleset.v1.Rule.severity:type_name -> seagull.detection.v1.Severity
+	0,  // 16: seagull.ruleset.v1.Rule.status:type_name -> seagull.ruleset.v1.Status
+	31, // 17: seagull.ruleset.v1.Rule.technique:type_name -> seagull.detection.v1.Technique
+	32, // 18: seagull.ruleset.v1.Rule.source:type_name -> seagull.detection.v1.Source
+	6,  // 19: seagull.ruleset.v1.Rule.cases:type_name -> seagull.ruleset.v1.Case
+	7,  // 20: seagull.ruleset.v1.Rule.count:type_name -> seagull.ruleset.v1.Count
+	9,  // 21: seagull.ruleset.v1.Rule.sequence:type_name -> seagull.ruleset.v1.Sequence
+	10, // 22: seagull.ruleset.v1.Version.rules:type_name -> seagull.ruleset.v1.Rule
+	33, // 23: seagull.ruleset.v1.Version.published_at:type_name -> google.protobuf.Timestamp
+	33, // 24: seagull.ruleset.v1.Active.activated_at:type_name -> google.protobuf.Timestamp
+	11, // 25: seagull.ruleset.v1.Record.version:type_name -> seagull.ruleset.v1.Version
+	12, // 26: seagull.ruleset.v1.Record.active:type_name -> seagull.ruleset.v1.Active
+	14, // 27: seagull.ruleset.v1.ValidationRequest.documents:type_name -> seagull.ruleset.v1.Document
+	15, // 28: seagull.ruleset.v1.ValidationResponse.faults:type_name -> seagull.ruleset.v1.Fault
+	14, // 29: seagull.ruleset.v1.CheckRequest.documents:type_name -> seagull.ruleset.v1.Document
+	18, // 30: seagull.ruleset.v1.CheckResponse.unheld:type_name -> seagull.ruleset.v1.Unheld
+	14, // 31: seagull.ruleset.v1.PublishRequest.documents:type_name -> seagull.ruleset.v1.Document
+	17, // 32: seagull.ruleset.v1.PublishResponse.validation:type_name -> seagull.ruleset.v1.ValidationResponse
+	20, // 33: seagull.ruleset.v1.PublishResponse.check:type_name -> seagull.ruleset.v1.CheckResponse
+	12, // 34: seagull.ruleset.v1.ActivationResponse.active:type_name -> seagull.ruleset.v1.Active
+	33, // 35: seagull.ruleset.v1.Summary.published_at:type_name -> google.protobuf.Timestamp
+	25, // 36: seagull.ruleset.v1.VersionList.versions:type_name -> seagull.ruleset.v1.Summary
+	12, // 37: seagull.ruleset.v1.VersionList.active:type_name -> seagull.ruleset.v1.Active
+	2,  // 38: seagull.ruleset.v1.Case.EventEntry.value:type_name -> seagull.ruleset.v1.Value
+	39, // [39:39] is the sub-list for method output_type
+	39, // [39:39] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_seagull_ruleset_v1_ruleset_proto_init() }
@@ -2095,7 +2241,7 @@ func file_seagull_ruleset_v1_ruleset_proto_init() {
 		(*Expression_Any)(nil),
 		(*Expression_Negated)(nil),
 	}
-	file_seagull_ruleset_v1_ruleset_proto_msgTypes[9].OneofWrappers = []any{
+	file_seagull_ruleset_v1_ruleset_proto_msgTypes[11].OneofWrappers = []any{
 		(*Record_Version)(nil),
 		(*Record_Active)(nil),
 	}
@@ -2105,7 +2251,7 @@ func file_seagull_ruleset_v1_ruleset_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_ruleset_v1_ruleset_proto_rawDesc), len(file_seagull_ruleset_v1_ruleset_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
