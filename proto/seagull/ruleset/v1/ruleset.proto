@@ -90,6 +90,28 @@ message Count {
   repeated string group_by = 3;
 }
 
+// One step of an ordered sequence: a name a reader can follow, and the match
+// that satisfies it. A stage matches one event the way a rule without a
+// sequence matches one event, so nothing new is learned to read one.
+message Stage {
+  string name = 1;
+  Expression match = 2;
+}
+
+// An ordered story a rule detects, rather than a single event. The stages are
+// satisfied in the order they are written, in event time and inside one window,
+// by events that share a group. A rule carries this or a `match`, never both:
+// the stages are the match.
+message Sequence {
+  repeated Stage stages = 1;
+  google.protobuf.Duration within = 2;
+
+  // What makes two events part of the same story, named the way a rule names
+  // any other field. The tenant is always part of the grouping and is never
+  // written here, exactly as it is never written on a count.
+  repeated string group_by = 3;
+}
+
 // A detection rule as it crosses a runtime boundary. The document somebody
 // wrote it in stays with the control plane that read it: what reaches an engine
 // is the rule, so a process that runs rules never learns a file format.
@@ -112,6 +134,10 @@ message Rule {
 
   // Absent on a rule that decides one event at a time, which is most of them.
   Count count = 16;
+
+  // Absent on a rule that matches. A rule carries `match` or `sequence`: the
+  // stages of a sequence are what it matches with.
+  Sequence sequence = 17;
 }
 
 // A published ruleset: immutable, and named by what is in it. Whoever reads one
