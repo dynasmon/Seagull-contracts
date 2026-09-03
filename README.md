@@ -18,6 +18,7 @@ proto/seagull/hunt/v1/         what a person may ask of what was stored
 proto/seagull/control/v1/      who a caller is and what they may do
 proto/seagull/ruleset/v1/      the rules a platform runs, and which set of them
 proto/seagull/alert/v1/        what an operator does about what the rules found
+proto/seagull/incident/v1/     the higher-order story a correlation tells
 gen/go/                        generated Go, committed
 ```
 
@@ -107,6 +108,27 @@ into one alert, which counts its `occurrences` and carries the event times of th
 first and the last. Folding discards nothing: `Occurrence` names every detection
 an alert is made of, so a count can always be read back to the evidence behind
 it.
+
+## The incident
+
+An incident is what a correlation becomes when a person has to answer for it. It
+is a fourth concept and not a fourth name for the same row: an event is an
+observation, a detection is a rule matching one, an alert is one detection
+somebody owns, and an incident is a story several events tell together. Keeping
+them apart is what stops a single alerts table from having to mean all four.
+
+It is named by the correlation detection that produced it, the way an alert is
+named by the detection that raised it, so a replayed batch finds the incident
+that already exists. `stages` carries one event per stage in the order the rule
+declares them, so the story can be traced back to its component events and,
+through `detection_id`, to what decided it. Nothing an operator does to an
+incident writes to any of them.
+
+`Confidence` is the platform's and not the rule author's. Severity says how much
+a story would matter if it happened in that order; confidence says how far the
+clocks that timed it support that order at all, measured as the clock spread the
+correlation carries against the story's own span and against the window the rule
+looked through. A rule cannot declare how well the clocks of an estate agree.
 
 ## The acknowledgement
 
