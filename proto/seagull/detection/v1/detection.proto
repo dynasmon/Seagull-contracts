@@ -88,6 +88,38 @@ message Aggregation {
   repeated Grouping group = 6;
 }
 
+// One stage of a sequence, and the event that satisfied it. Named rather than
+// numbered, because a sequence is a story and a reader should not have to fetch
+// the rule to learn what its third step was.
+message Stage {
+  string name = 1;
+  string event_id = 2;
+  google.protobuf.Timestamp event_time = 3;
+}
+
+// What an ordered sequence of events came to, and nothing a rule deciding one
+// event at a time can say. A detection reading "a successful login" and one
+// reading "a successful login after twenty failures from the same address"
+// are different pieces of work, and only this tells them apart.
+message Correlation {
+  // One per stage, in the order the rule declares them, each naming the event
+  // that satisfied it. The events are also carried in `source_event_ids`; this
+  // says which of them played which part.
+  repeated Stage stages = 1;
+
+  // How far back the rule was told to look. The span the events actually
+  // covered is the difference between the first and last stage above.
+  google.protobuf.Duration window = 2;
+
+  // How much the clocks that timed this sequence disagreed, measured as the
+  // spread of `observed_time` against `ingest_time` across the events above.
+  // Ordering is decided in event time, which is the producer's clock, so a
+  // spread wider than the span means the order is not established by the data.
+  google.protobuf.Duration clock_spread = 3;
+
+  repeated Grouping group = 4;
+}
+
 // The result of analytical logic matching evidence.
 //
 // A detection is not an alert. It carries no status, no assignee and no
@@ -128,4 +160,9 @@ message Detection {
   // time. The events named above are what this detection is identified by;
   // this is what they were counted against.
   Aggregation aggregation = 13;
+
+  // What an ordered sequence found, absent on every other rule. The events
+  // named above are the ones that made the sequence; this says which stage each
+  // of them satisfied and how far the clocks that ordered them disagreed.
+  Correlation correlation = 14;
 }

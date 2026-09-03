@@ -79,6 +79,15 @@ with the rule because it is part of what the rule decides — a published rulese
 that dropped it would run a different rule from the one somebody wrote — and
 `Aggregation` on the detection is what such a rule found.
 
+A rule may instead carry a `Sequence`, which is an ordered story rather than a
+single event: named stages, satisfied in the order they are written, in event
+time, inside one window, by events that share a group. A rule carries a `match`
+or a `Sequence` and never both, because the stages are what it matches with.
+`Correlation` on the detection names the event that satisfied each stage, and
+carries how far the clocks that ordered them disagreed — ordering rests on the
+producer's clock, so a spread wider than the story's own span means the order is
+not established by the data.
+
 ## The alert
 
 A detection states what the platform found; an alert is what a person does about
