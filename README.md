@@ -19,6 +19,7 @@ proto/seagull/control/v1/      who a caller is and what they may do
 proto/seagull/ruleset/v1/      the rules a platform runs, and which set of them
 proto/seagull/alert/v1/        what an operator does about what the rules found
 proto/seagull/incident/v1/     the higher-order story a correlation tells
+proto/seagull/agent/v1/        the machines the platform admits telemetry from
 gen/go/                        generated Go, committed
 ```
 
@@ -129,6 +130,28 @@ a story would matter if it happened in that order; confidence says how far the
 clocks that timed it support that order at all, measured as the clock spread the
 correlation carries against the story's own span and against the window the rule
 looked through. A rule cannot declare how well the clocks of an estate agree.
+
+## The agent
+
+An `Agent` is the administrative record of one machine: which tenant it belongs
+to, what somebody said it was, the certificate identity bound to it, and who last
+moved it. It is not a picture of a running machine. `State` is closed, and its
+three endings mean different things — `DISABLED` is reversible and says an
+operator stopped listening, `REVOKED` says the credential is not to be trusted,
+`DECOMMISSIONED` says the machine is gone — because only that distinction decides
+whether a certificate may be issued for the identity again.
+
+`last_seen` is the one field that is not decided but observed, and it is read
+back from where the telemetry landed rather than kept beside the others. An agent
+sends continuously and is registered once; a registry that recorded every arrival
+would be a write on the ingest path, and the ingest path may not depend on the
+control plane's store.
+
+`Admission` is what the data plane is told, and it is deliberately less than the
+record: an agent, a tenant, a state and the revision it was written from. It
+crosses a compacted topic keyed by the agent, so a gateway replays it before it
+serves and follows it afterwards, and learns that an identity is no longer
+honoured without learning who stopped honouring it or why.
 
 ## The acknowledgement
 
