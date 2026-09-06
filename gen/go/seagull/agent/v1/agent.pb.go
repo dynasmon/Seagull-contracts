@@ -821,8 +821,8 @@ func (x *Query) GetCursor() string {
 	return ""
 }
 
-// Oldest identifier first. An empty `next_cursor` means there is nothing
-// further.
+// Ordered by identifier, ascending. An empty `next_cursor` means there is
+// nothing further.
 type Page struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Agents        []*Agent               `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
