@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package seagull.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/hunt/v1/hunt.proto";
+
+// Where an agent stands with the platform. A closed set, because a transition is
+// refused against it and a state nobody declared is an agent nobody can retire.
+//
+// The three endings are not one ending wearing three labels. DISABLED is
+// reversible and says an operator stopped listening to a machine that is still
+// trusted; REVOKED says the credential itself is not to be trusted and the
+// machine may still be running; DECOMMISSIONED says the machine is gone.
+// Collapsing them loses the only distinction that decides whether a certificate
+// may ever be issued for this identity again.
+enum State {
+  STATE_UNSPECIFIED = 0;
+
+  // Registered, with no certificate identity bound to it yet.
+  STATE_PENDING = 1;
+
+  // A certificate identity is bound and telemetry from it is admitted.
+  STATE_ACTIVE = 2;
+
+  STATE_DISABLED = 3;
+  STATE_REVOKED = 4;
+  STATE_DECOMMISSIONED = 5;
+}
+
+// The certificate the platform expects this agent to present. It is recorded
+// when the identity is bound and is not how a request is authenticated: the
+// gateway reads the identity off the verified chain of the connection in front
+// of it, and this is what the registry knows was issued.
+message Identity {
+  string subject = 1;
+  string serial = 2;
+  string fingerprint_sha256 = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+// What the machine says it is. Declared at registration rather than observed,
+// so it is what somebody wrote down; what the estate actually reports travels in
+// the telemetry, under `seagull.event.v1.Origin.host`.
+message Platform {
+  string os = 1;
+  string architecture = 2;
+  string hostname = 3;
+}
+
+// What the platform decided about one agent.
+//
+// It is the administrative record and not a picture of a running machine: the
+// state, the tenant it belongs to, the certificate identity bound to it and the
+// trail of who moved it. Nothing in the ingest path writes here, which is what
+// keeps an agent's telemetry independent of whether this store can be reached.
+message Agent {
+  string agent_id = 1;
+  uint32 schema_version = 2;
+  string tenant_id = 3;
+
+  State state = 4;
+  Platform platform = 5;
+  string agent_version = 6;
+  Identity identity = 7;
+
+  // When the platform first knew of this agent, which is when somebody
+  // registered it.
+  google.protobuf.Timestamp registered_at = 8;
+
+  // Who last moved it and when. The whole trail is a separate read: this is the
+  // last line of it, carried so a list does not need one query per row.
+  string changed_by = 9;
+  google.protobuf.Timestamp changed_at = 10;
+
+  // Moves by one on every transition, and a caller may say which revision it
+  // believed it was acting on. Two operators acting at once means the second is
+  // told the agent moved rather than quietly overwriting the first.
+  uint64 revision = 11;
+
+  // When telemetry from this agent last reached the platform. It is not stored
+  // beside the fields above and is not part of what the registry decides: it is
+  // read back from where the telemetry landed, so a registry that has never
+  // heard from an agent cannot claim it is alive and a busy agent cannot cost a
+  // write on the ingest path to say so. Absent when nothing was found.
+  google.protobuf.Timestamp last_seen = 12;
+}
+
+// One thing somebody did to an agent. Append only: the trail is what makes a
+// lifecycle change attributable, so nothing rewrites a line of it.
+message Transition {
+  string agent_id = 1;
+  uint64 revision = 2;
+  State from = 3;
+  State to = 4;
+  string actor = 5;
+  google.protobuf.Timestamp at = 6;
+  string note = 7;
+}
+
+message History {
+  string agent_id = 1;
+  repeated Transition transitions = 2;
+}
+
+// Registering an agent, which is where an agent identity comes from. The tenant
+// is the caller's to name and the agent's never: an agent that could choose its
+// own tenant could read another estate's scope into its telemetry.
+message Registration {
+  string agent_id = 1;
+  string tenant_id = 2;
+  Platform platform = 3;
+  string agent_version = 4;
+  string note = 5;
+}
+
+// Recording the certificate an agent will present, which is what moves it from
+// pending to active. The registry is told what was issued; it does not issue.
+message BindingRequest {
+  Identity identity = 1;
+  string note = 2;
+
+  // Zero acts on whatever the agent currently is. Otherwise the revision the
+  // caller believed it was acting on, and a mismatch is refused.
+  uint64 expected_revision = 3;
+}
+
+// Asking for a state. The state asked for is the whole request: which
+// transitions are legal is the server's to decide, and a caller that names an
+// illegal one is refused rather than corrected.
+message TransitionRequest {
+  State to = 1;
+
+  // Required for every ending. Disabling, revoking and decommissioning are all
+  // acts somebody has to answer for, and none of them is worth recording
+  // without the why.
+  string note = 2;
+
+  uint64 expected_revision = 3;
+}
+
+// What a person asks of the agents they may see. Narrow on purpose: an estate
+// has far fewer agents than the telemetry they send, and the question an
+// operator asks is some of "which are live", "which did we retire" and "which
+// machine is this".
+//
+// An empty list is not a filter and never a wildcard denial: it asks about every
+// value of that field, within the tenants the caller holds.
+message Query {
+  // Over registered_at, and optional: an agent list is small enough to answer
+  // without one, which a telemetry hunt is not.
+  seagull.hunt.v1.TimeRange range = 1;
+
+  repeated State states = 2;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 3;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged: it is the server's own token and is not composed by a
+  // caller.
+  string cursor = 4;
+}
+
+// Ordered by identifier, ascending. An empty `next_cursor` means there is
+// nothing further.
+message Page {
+  repeated Agent agents = 1;
+  string next_cursor = 2;
+}
+
+// What the data plane is told about an agent, and nothing more.
+//
+// The registry is a control-plane store and the ingest path may not read it per
+// batch, so what an operator decided reaches the gateway as a record on a
+// compacted topic keyed by the agent: the gateway replays the topic before it
+// serves and follows it afterwards. It carries the state and not the reason, the
+// operator or the certificate — a data-plane process learns that an identity is
+// no longer honoured, not who stopped honouring it.
+message Admission {
+  string agent_id = 1;
+  string tenant_id = 2;
+  State state = 3;
+
+  // The registry revision this record was written from, so a record that arrives
+  // out of order is recognised as older rather than applied over a newer one.
+  uint64 revision = 4;
+  google.protobuf.Timestamp changed_at = 5;
+}
