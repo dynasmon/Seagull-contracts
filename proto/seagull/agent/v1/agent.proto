@@ -163,8 +163,8 @@ message Query {
   string cursor = 4;
 }
 
-// Oldest identifier first. An empty `next_cursor` means there is nothing
-// further.
+// Ordered by identifier, ascending. An empty `next_cursor` means there is
+// nothing further.
 message Page {
   repeated Agent agents = 1;
   string next_cursor = 2;
