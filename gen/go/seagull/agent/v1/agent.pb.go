@@ -961,6 +961,344 @@ func (x *Admission) GetChangedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Asking the platform to sign a certificate for an agent.
+//
+// The request carries a certificate signing request and never a key: the private
+// key is generated where it will be used and does not cross the wire, so a
+// control plane somebody took does not hand them the identities it issued.
+type CertificateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// PEM-encoded PKCS#10. Its common name is the agent it is for, and one naming
+	// anybody else is refused rather than signed under a corrected name — the
+	// subject is what the gateway reads an identity from.
+	CsrPem []byte `protobuf:"bytes,1,opt,name=csr_pem,json=csrPem,proto3" json:"csr_pem,omitempty"`
+	Note   string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
+	// Zero acts on whatever the agent currently is. Otherwise the revision the
+	// caller believed it was acting on: issuing binds what it signed, so it moves
+	// the agent and races with every other move.
+	ExpectedRevision uint64 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CertificateRequest) Reset() {
+	*x = CertificateRequest{}
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CertificateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CertificateRequest) ProtoMessage() {}
+
+func (x *CertificateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CertificateRequest.ProtoReflect.Descriptor instead.
+func (*CertificateRequest) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CertificateRequest) GetCsrPem() []byte {
+	if x != nil {
+		return x.CsrPem
+	}
+	return nil
+}
+
+func (x *CertificateRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *CertificateRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+// Asking for a replacement of the certificate the connection is authenticated
+// with. It names no agent and carries no note: the agent is whoever the
+// connection proved it is, and a renewal nobody had to authorise has no operator
+// to record. An agent with no usable certificate left cannot ask this and is
+// issued one the way it was issued its first.
+type RenewalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CsrPem        []byte                 `protobuf:"bytes,1,opt,name=csr_pem,json=csrPem,proto3" json:"csr_pem,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenewalRequest) Reset() {
+	*x = RenewalRequest{}
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenewalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenewalRequest) ProtoMessage() {}
+
+func (x *RenewalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenewalRequest.ProtoReflect.Descriptor instead.
+func (*RenewalRequest) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RenewalRequest) GetCsrPem() []byte {
+	if x != nil {
+		return x.CsrPem
+	}
+	return nil
+}
+
+// What was signed, and what the agent needs to use it. It carries no private key
+// for the same reason the request carries none.
+type IssuedCertificate struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CertificatePem []byte                 `protobuf:"bytes,1,opt,name=certificate_pem,json=certificatePem,proto3" json:"certificate_pem,omitempty"`
+	// The authority that signed it, and any above it, so the agent presents a
+	// chain a listener verifies without holding an intermediate of its own.
+	ChainPem []byte `protobuf:"bytes,2,opt,name=chain_pem,json=chainPem,proto3" json:"chain_pem,omitempty"`
+	// Every authority the agent trusts when it verifies a Seagull listener. Sent
+	// on every issuance rather than only when it changes, because that is what
+	// rotates a certificate authority without an operator visiting each machine:
+	// an agent that renews learns the next authority before the current one stops
+	// signing.
+	TrustBundlePem []byte `protobuf:"bytes,3,opt,name=trust_bundle_pem,json=trustBundlePem,proto3" json:"trust_bundle_pem,omitempty"`
+	// What the registry recorded, so neither side has to parse the other's
+	// certificate to agree on the identity that was bound.
+	Identity      *Identity `protobuf:"bytes,4,opt,name=identity,proto3" json:"identity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssuedCertificate) Reset() {
+	*x = IssuedCertificate{}
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssuedCertificate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssuedCertificate) ProtoMessage() {}
+
+func (x *IssuedCertificate) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssuedCertificate.ProtoReflect.Descriptor instead.
+func (*IssuedCertificate) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *IssuedCertificate) GetCertificatePem() []byte {
+	if x != nil {
+		return x.CertificatePem
+	}
+	return nil
+}
+
+func (x *IssuedCertificate) GetChainPem() []byte {
+	if x != nil {
+		return x.ChainPem
+	}
+	return nil
+}
+
+func (x *IssuedCertificate) GetTrustBundlePem() []byte {
+	if x != nil {
+		return x.TrustBundlePem
+	}
+	return nil
+}
+
+func (x *IssuedCertificate) GetIdentity() *Identity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+// One certificate the platform signed for an agent. Append only: renewal changes
+// which one is current and rewrites no line of what came before, so which key a
+// machine was using at a past moment stays answerable after a rotation.
+type CertificateRecord struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	AgentId  string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Identity *Identity              `protobuf:"bytes,2,opt,name=identity,proto3" json:"identity,omitempty"`
+	// The subject of the authority that signed it, so rotating a certificate
+	// authority is visible in the trail and not only in the configuration.
+	AuthoritySubject string `protobuf:"bytes,3,opt,name=authority_subject,json=authoritySubject,proto3" json:"authority_subject,omitempty"`
+	// Who asked for it: the operator who had it signed, or the agent's own
+	// identifier when it renewed with the certificate it was replacing. An
+	// operator was involved exactly when this is not the agent.
+	IssuedBy string `protobuf:"bytes,4,opt,name=issued_by,json=issuedBy,proto3" json:"issued_by,omitempty"`
+	// When it stopped being the agent's current certificate. Absent while it is.
+	SupersededAt  *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=superseded_at,json=supersededAt,proto3" json:"superseded_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CertificateRecord) Reset() {
+	*x = CertificateRecord{}
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CertificateRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CertificateRecord) ProtoMessage() {}
+
+func (x *CertificateRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CertificateRecord.ProtoReflect.Descriptor instead.
+func (*CertificateRecord) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CertificateRecord) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *CertificateRecord) GetIdentity() *Identity {
+	if x != nil {
+		return x.Identity
+	}
+	return nil
+}
+
+func (x *CertificateRecord) GetAuthoritySubject() string {
+	if x != nil {
+		return x.AuthoritySubject
+	}
+	return ""
+}
+
+func (x *CertificateRecord) GetIssuedBy() string {
+	if x != nil {
+		return x.IssuedBy
+	}
+	return ""
+}
+
+func (x *CertificateRecord) GetSupersededAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SupersededAt
+	}
+	return nil
+}
+
+// Newest first. An agent that was never issued a certificate has none, which is
+// not an error: a pending agent is one nothing has been signed for yet.
+type CertificateHistory struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Certificates  []*CertificateRecord   `protobuf:"bytes,2,rep,name=certificates,proto3" json:"certificates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CertificateHistory) Reset() {
+	*x = CertificateHistory{}
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CertificateHistory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CertificateHistory) ProtoMessage() {}
+
+func (x *CertificateHistory) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_agent_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CertificateHistory.ProtoReflect.Descriptor instead.
+func (*CertificateHistory) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CertificateHistory) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *CertificateHistory) GetCertificates() []*CertificateRecord {
+	if x != nil {
+		return x.Certificates
+	}
+	return nil
+}
+
 var File_seagull_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_seagull_agent_v1_agent_proto_rawDesc = "" +
@@ -1034,7 +1372,27 @@ const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\x05state\x18\x03 \x01(\x0e2\x17.seagull.agent.v1.StateR\x05state\x12\x1a\n" +
 	"\brevision\x18\x04 \x01(\x04R\brevision\x129\n" +
 	"\n" +
-	"changed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt*\x84\x01\n" +
+	"changed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt\"n\n" +
+	"\x12CertificateRequest\x12\x17\n" +
+	"\acsr_pem\x18\x01 \x01(\fR\x06csrPem\x12\x12\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\")\n" +
+	"\x0eRenewalRequest\x12\x17\n" +
+	"\acsr_pem\x18\x01 \x01(\fR\x06csrPem\"\xbb\x01\n" +
+	"\x11IssuedCertificate\x12'\n" +
+	"\x0fcertificate_pem\x18\x01 \x01(\fR\x0ecertificatePem\x12\x1b\n" +
+	"\tchain_pem\x18\x02 \x01(\fR\bchainPem\x12(\n" +
+	"\x10trust_bundle_pem\x18\x03 \x01(\fR\x0etrustBundlePem\x126\n" +
+	"\bidentity\x18\x04 \x01(\v2\x1a.seagull.agent.v1.IdentityR\bidentity\"\xf1\x01\n" +
+	"\x11CertificateRecord\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x126\n" +
+	"\bidentity\x18\x02 \x01(\v2\x1a.seagull.agent.v1.IdentityR\bidentity\x12+\n" +
+	"\x11authority_subject\x18\x03 \x01(\tR\x10authoritySubject\x12\x1b\n" +
+	"\tissued_by\x18\x04 \x01(\tR\bissuedBy\x12?\n" +
+	"\rsuperseded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\fsupersededAt\"x\n" +
+	"\x12CertificateHistory\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12G\n" +
+	"\fcertificates\x18\x02 \x03(\v2#.seagull.agent.v1.CertificateRecordR\fcertificates*\x84\x01\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSTATE_PENDING\x10\x01\x12\x10\n" +
@@ -1058,7 +1416,7 @@ func file_seagull_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_seagull_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_seagull_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_seagull_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_seagull_agent_v1_agent_proto_goTypes = []any{
 	(State)(0),                    // 0: seagull.agent.v1.State
 	(*Identity)(nil),              // 1: seagull.agent.v1.Identity
@@ -1072,35 +1430,44 @@ var file_seagull_agent_v1_agent_proto_goTypes = []any{
 	(*Query)(nil),                 // 9: seagull.agent.v1.Query
 	(*Page)(nil),                  // 10: seagull.agent.v1.Page
 	(*Admission)(nil),             // 11: seagull.agent.v1.Admission
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
-	(*v1.TimeRange)(nil),          // 13: seagull.hunt.v1.TimeRange
+	(*CertificateRequest)(nil),    // 12: seagull.agent.v1.CertificateRequest
+	(*RenewalRequest)(nil),        // 13: seagull.agent.v1.RenewalRequest
+	(*IssuedCertificate)(nil),     // 14: seagull.agent.v1.IssuedCertificate
+	(*CertificateRecord)(nil),     // 15: seagull.agent.v1.CertificateRecord
+	(*CertificateHistory)(nil),    // 16: seagull.agent.v1.CertificateHistory
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*v1.TimeRange)(nil),          // 18: seagull.hunt.v1.TimeRange
 }
 var file_seagull_agent_v1_agent_proto_depIdxs = []int32{
-	12, // 0: seagull.agent.v1.Identity.issued_at:type_name -> google.protobuf.Timestamp
-	12, // 1: seagull.agent.v1.Identity.expires_at:type_name -> google.protobuf.Timestamp
+	17, // 0: seagull.agent.v1.Identity.issued_at:type_name -> google.protobuf.Timestamp
+	17, // 1: seagull.agent.v1.Identity.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: seagull.agent.v1.Agent.state:type_name -> seagull.agent.v1.State
 	2,  // 3: seagull.agent.v1.Agent.platform:type_name -> seagull.agent.v1.Platform
 	1,  // 4: seagull.agent.v1.Agent.identity:type_name -> seagull.agent.v1.Identity
-	12, // 5: seagull.agent.v1.Agent.registered_at:type_name -> google.protobuf.Timestamp
-	12, // 6: seagull.agent.v1.Agent.changed_at:type_name -> google.protobuf.Timestamp
-	12, // 7: seagull.agent.v1.Agent.last_seen:type_name -> google.protobuf.Timestamp
+	17, // 5: seagull.agent.v1.Agent.registered_at:type_name -> google.protobuf.Timestamp
+	17, // 6: seagull.agent.v1.Agent.changed_at:type_name -> google.protobuf.Timestamp
+	17, // 7: seagull.agent.v1.Agent.last_seen:type_name -> google.protobuf.Timestamp
 	0,  // 8: seagull.agent.v1.Transition.from:type_name -> seagull.agent.v1.State
 	0,  // 9: seagull.agent.v1.Transition.to:type_name -> seagull.agent.v1.State
-	12, // 10: seagull.agent.v1.Transition.at:type_name -> google.protobuf.Timestamp
+	17, // 10: seagull.agent.v1.Transition.at:type_name -> google.protobuf.Timestamp
 	4,  // 11: seagull.agent.v1.History.transitions:type_name -> seagull.agent.v1.Transition
 	2,  // 12: seagull.agent.v1.Registration.platform:type_name -> seagull.agent.v1.Platform
 	1,  // 13: seagull.agent.v1.BindingRequest.identity:type_name -> seagull.agent.v1.Identity
 	0,  // 14: seagull.agent.v1.TransitionRequest.to:type_name -> seagull.agent.v1.State
-	13, // 15: seagull.agent.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
+	18, // 15: seagull.agent.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
 	0,  // 16: seagull.agent.v1.Query.states:type_name -> seagull.agent.v1.State
 	3,  // 17: seagull.agent.v1.Page.agents:type_name -> seagull.agent.v1.Agent
 	0,  // 18: seagull.agent.v1.Admission.state:type_name -> seagull.agent.v1.State
-	12, // 19: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	17, // 19: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
+	1,  // 20: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
+	1,  // 21: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
+	17, // 22: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
+	15, // 23: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_seagull_agent_v1_agent_proto_init() }
@@ -1114,7 +1481,7 @@ func file_seagull_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_agent_v1_agent_proto_rawDesc), len(file_seagull_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
