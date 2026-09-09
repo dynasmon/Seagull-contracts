@@ -34,6 +34,7 @@ const (
 	Resource_RESOURCE_AGENTS      Resource = 5
 	Resource_RESOURCE_POLICIES    Resource = 6
 	Resource_RESOURCE_SESSIONS    Resource = 7
+	Resource_RESOURCE_INCIDENTS   Resource = 8
 )
 
 // Enum value maps for Resource.
@@ -47,6 +48,7 @@ var (
 		5: "RESOURCE_AGENTS",
 		6: "RESOURCE_POLICIES",
 		7: "RESOURCE_SESSIONS",
+		8: "RESOURCE_INCIDENTS",
 	}
 	Resource_value = map[string]int32{
 		"RESOURCE_UNSPECIFIED": 0,
@@ -57,6 +59,7 @@ var (
 		"RESOURCE_AGENTS":      5,
 		"RESOURCE_POLICIES":    6,
 		"RESOURCE_SESSIONS":    7,
+		"RESOURCE_INCIDENTS":   8,
 	}
 )
 
@@ -649,7 +652,7 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\arevoked\x18\x01 \x01(\rR\arevoked\"5\n" +
 	"\aRefusal\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail*\xc1\x01\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail*\xd9\x01\n" +
 	"\bResource\x12\x18\n" +
 	"\x14RESOURCE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fRESOURCE_EVENTS\x10\x01\x12\x17\n" +
@@ -658,7 +661,8 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\x0fRESOURCE_ALERTS\x10\x04\x12\x13\n" +
 	"\x0fRESOURCE_AGENTS\x10\x05\x12\x15\n" +
 	"\x11RESOURCE_POLICIES\x10\x06\x12\x15\n" +
-	"\x11RESOURCE_SESSIONS\x10\a*V\n" +
+	"\x11RESOURCE_SESSIONS\x10\a\x12\x16\n" +
+	"\x12RESOURCE_INCIDENTS\x10\b*V\n" +
 	"\x06Action\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vACTION_READ\x10\x01\x12\x10\n" +

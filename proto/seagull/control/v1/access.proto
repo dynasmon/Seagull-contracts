@@ -14,6 +14,7 @@ enum Resource {
   RESOURCE_AGENTS = 5;
   RESOURCE_POLICIES = 6;
   RESOURCE_SESSIONS = 7;
+  RESOURCE_INCIDENTS = 8;
 }
 
 enum Action {
