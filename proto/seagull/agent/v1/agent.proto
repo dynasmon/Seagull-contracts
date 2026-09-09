@@ -188,3 +188,78 @@ message Admission {
   uint64 revision = 4;
   google.protobuf.Timestamp changed_at = 5;
 }
+
+// Asking the platform to sign a certificate for an agent.
+//
+// The request carries a certificate signing request and never a key: the private
+// key is generated where it will be used and does not cross the wire, so a
+// control plane somebody took does not hand them the identities it issued.
+message CertificateRequest {
+  // PEM-encoded PKCS#10. Its common name is the agent it is for, and one naming
+  // anybody else is refused rather than signed under a corrected name — the
+  // subject is what the gateway reads an identity from.
+  bytes csr_pem = 1;
+
+  string note = 2;
+
+  // Zero acts on whatever the agent currently is. Otherwise the revision the
+  // caller believed it was acting on: issuing binds what it signed, so it moves
+  // the agent and races with every other move.
+  uint64 expected_revision = 3;
+}
+
+// Asking for a replacement of the certificate the connection is authenticated
+// with. It names no agent and carries no note: the agent is whoever the
+// connection proved it is, and a renewal nobody had to authorise has no operator
+// to record. An agent with no usable certificate left cannot ask this and is
+// issued one the way it was issued its first.
+message RenewalRequest {
+  bytes csr_pem = 1;
+}
+
+// What was signed, and what the agent needs to use it. It carries no private key
+// for the same reason the request carries none.
+message IssuedCertificate {
+  bytes certificate_pem = 1;
+
+  // The authority that signed it, and any above it, so the agent presents a
+  // chain a listener verifies without holding an intermediate of its own.
+  bytes chain_pem = 2;
+
+  // Every authority the agent trusts when it verifies a Seagull listener. Sent
+  // on every issuance rather than only when it changes, because that is what
+  // rotates a certificate authority without an operator visiting each machine:
+  // an agent that renews learns the next authority before the current one stops
+  // signing.
+  bytes trust_bundle_pem = 3;
+
+  // What the registry recorded, so neither side has to parse the other's
+  // certificate to agree on the identity that was bound.
+  Identity identity = 4;
+}
+
+// One certificate the platform signed for an agent. Append only: renewal changes
+// which one is current and rewrites no line of what came before, so which key a
+// machine was using at a past moment stays answerable after a rotation.
+message CertificateRecord {
+  string agent_id = 1;
+  Identity identity = 2;
+
+  // The subject of the authority that signed it, so rotating a certificate
+  // authority is visible in the trail and not only in the configuration.
+  string authority_subject = 3;
+
+  // Who asked for it. Empty when the agent renewed its own, which is the case no
+  // operator was part of.
+  string issued_by = 4;
+
+  // When it stopped being the agent's current certificate. Absent while it is.
+  google.protobuf.Timestamp superseded_at = 5;
+}
+
+// Newest first. An agent that was never issued a certificate has none, which is
+// not an error: a pending agent is one nothing has been signed for yet.
+message CertificateHistory {
+  string agent_id = 1;
+  repeated CertificateRecord certificates = 2;
+}
