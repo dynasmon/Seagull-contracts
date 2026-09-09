@@ -1170,8 +1170,9 @@ type CertificateRecord struct {
 	// The subject of the authority that signed it, so rotating a certificate
 	// authority is visible in the trail and not only in the configuration.
 	AuthoritySubject string `protobuf:"bytes,3,opt,name=authority_subject,json=authoritySubject,proto3" json:"authority_subject,omitempty"`
-	// Who asked for it. Empty when the agent renewed its own, which is the case no
-	// operator was part of.
+	// Who asked for it: the operator who had it signed, or the agent's own
+	// identifier when it renewed with the certificate it was replacing. An
+	// operator was involved exactly when this is not the agent.
 	IssuedBy string `protobuf:"bytes,4,opt,name=issued_by,json=issuedBy,proto3" json:"issued_by,omitempty"`
 	// When it stopped being the agent's current certificate. Absent while it is.
 	SupersededAt  *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=superseded_at,json=supersededAt,proto3" json:"superseded_at,omitempty"`

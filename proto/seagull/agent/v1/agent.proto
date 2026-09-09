@@ -249,8 +249,9 @@ message CertificateRecord {
   // authority is visible in the trail and not only in the configuration.
   string authority_subject = 3;
 
-  // Who asked for it. Empty when the agent renewed its own, which is the case no
-  // operator was part of.
+  // Who asked for it: the operator who had it signed, or the agent's own
+  // identifier when it renewed with the certificate it was replacing. An
+  // operator was involved exactly when this is not the agent.
   string issued_by = 4;
 
   // When it stopped being the agent's current certificate. Absent while it is.
