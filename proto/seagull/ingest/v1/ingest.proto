@@ -22,5 +22,10 @@ message Rejection {
   string code = 1;
   string detail = 2;
   string field = 3;
+
+  // Which record of the batch was refused, or -1 when the batch was refused as
+  // a whole. It indexes whatever the batch carried: the name predates inventory
+  // records, which are refused with this same message, and renaming a field a
+  // deployed agent already reads would strand it for nothing.
   int32 event_index = 4;
 }
