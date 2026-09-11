@@ -145,11 +145,15 @@ func (x *BatchAck) GetReceived() uint32 {
 }
 
 type Rejection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	Detail        string                 `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
-	Field         string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
-	EventIndex    int32                  `protobuf:"varint,4,opt,name=event_index,json=eventIndex,proto3" json:"event_index,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Code   string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Detail string                 `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	Field  string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	// Which record of the batch was refused, or -1 when the batch was refused as
+	// a whole. It indexes whatever the batch carried: the name predates inventory
+	// records, which are refused with this same message, and renaming a field a
+	// deployed agent already reads would strand it for nothing.
+	EventIndex    int32 `protobuf:"varint,4,opt,name=event_index,json=eventIndex,proto3" json:"event_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
