@@ -1,0 +1,206 @@
+syntax = "proto3";
+
+package seagull.inventory.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/event/v1/event.proto";
+
+// What an asset was observed to have, of one kind, at one moment.
+//
+// This is telemetry and not the inventory: a record says what a collector saw,
+// and the current state of an endpoint is a projection several of these records
+// are folded into. The two are kept apart on purpose — a record is immutable and
+// a projection is replaced — and the projection is rebuilt by reading these back.
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_OPERATING_SYSTEM = 1;
+  KIND_KERNEL = 2;
+  KIND_PACKAGE = 3;
+  KIND_SERVICE = 4;
+  KIND_NETWORK_INTERFACE = 5;
+  KIND_USER = 6;
+  KIND_HARDWARE = 7;
+  KIND_PROCESS = 8;
+}
+
+// What may be concluded from what a record does not carry.
+//
+// The distinction is the whole reason a projection can say an item is gone: a
+// snapshot is complete, so an item the asset had and this record does not name
+// is no longer there. A delta says nothing about what it omits, so it may never
+// retire an item, and a collector that cannot enumerate everything sends one.
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_SNAPSHOT = 1;
+  MODE_DELTA = 2;
+}
+
+// The distribution the machine runs, as the machine describes itself. One per
+// asset. `seagull.event.v1.Origin.host.os` is the short form an event carries;
+// this is what a collector read out of the system.
+message OperatingSystem {
+  string name = 1;
+  string version = 2;
+  string build = 3;
+
+  // The vendor's own identifier for the distribution, such as `ubuntu` or
+  // `rhel`, which is what a vulnerability feed is keyed by and what the display
+  // name cannot be relied on to give.
+  string platform = 4;
+
+  string codename = 5;
+  string family = 6;
+}
+
+// The kernel the machine booted. One per asset, and separate from the
+// distribution because a kernel is patched on its own cadence and is what a
+// kernel advisory names.
+message Kernel {
+  string name = 1;
+  string release = 2;
+  string version = 3;
+  string architecture = 4;
+}
+
+// One installed package. The kind an estate has thousands of per asset, and the
+// one vulnerability matching reads: `manager` is what decides which ecosystem a
+// name and a version are interpreted in, so it travels with them rather than
+// being inferred from the operating system later.
+message Package {
+  string name = 1;
+  string version = 2;
+  string architecture = 3;
+  string manager = 4;
+  string source = 5;
+  string vendor = 6;
+  uint64 size_bytes = 7;
+  google.protobuf.Timestamp installed_at = 8;
+}
+
+// One service the machine is configured to run.
+message Service {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_RUNNING = 1;
+    STATE_STOPPED = 2;
+    STATE_FAILED = 3;
+  }
+
+  string name = 1;
+  string display_name = 2;
+  State state = 3;
+
+  // The init system's own word for whether it starts on boot — `enabled`,
+  // `disabled`, `manual`, `static`. Left as text because the set is the vendor's
+  // and a value nobody declared is worth keeping rather than refusing.
+  string start_mode = 4;
+
+  string path = 5;
+}
+
+// One network interface and the addresses it holds.
+message NetworkInterface {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_UP = 1;
+    STATE_DOWN = 2;
+  }
+
+  string name = 1;
+  string mac = 2;
+  repeated string addresses = 3;
+  State state = 4;
+  uint32 mtu = 5;
+  string type = 6;
+}
+
+// One local account. Not an authentication event and never a credential: what a
+// collector can read out of the account database, so that who exists on a
+// machine is answerable without waiting for somebody to log in.
+message User {
+  string name = 1;
+  string uid = 2;
+  string gid = 3;
+  string home = 4;
+  string shell = 5;
+  repeated string groups = 6;
+  google.protobuf.Timestamp last_login = 7;
+}
+
+// What the machine is made of. One per asset.
+message Hardware {
+  string cpu_name = 1;
+  uint32 cpu_cores = 2;
+  uint32 cpu_mhz = 3;
+  uint64 memory_total_bytes = 4;
+  string serial = 5;
+  string vendor = 6;
+  string model = 7;
+}
+
+// One process that was running when the collector looked.
+//
+// The most volatile kind by far, and the one whose snapshot is a photograph
+// rather than a state: an asset's process list is different a second later. It
+// is carried here because what was running is evidence, and it is retained on a
+// horizon of its own rather than on the one a package list deserves.
+message Process {
+  uint32 pid = 1;
+  uint32 parent_pid = 2;
+  string name = 3;
+  string path = 4;
+  string command_line = 5;
+  string user = 6;
+  google.protobuf.Timestamp started_at = 7;
+}
+
+// One thing an asset has. Exactly one body is set, and it is the one the
+// record's `kind` names: a record whose items disagree with its kind is refused
+// rather than sorted out later.
+message Item {
+  oneof body {
+    OperatingSystem operating_system = 16;
+    Kernel kernel = 17;
+    Package package = 18;
+    Service service = 19;
+    NetworkInterface network_interface = 20;
+    User user = 21;
+    Hardware hardware = 22;
+    Process process = 23;
+  }
+}
+
+// One asset's inventory of one kind, as one collector saw it at one moment.
+//
+// Identity, tenant and reception are the platform's to write and a producer
+// cannot place itself in them, exactly as for an event: the agent comes from the
+// verified certificate and the tenant from the registry's record of it.
+message Record {
+  string record_id = 1;
+  uint32 schema_version = 2;
+
+  Kind kind = 3;
+  Mode mode = 4;
+
+  // When the collector looked, which is what decides whether this record is
+  // newer than what the projection already holds. It is the producer's clock and
+  // is bounded by the same admission window an event's timestamps are.
+  google.protobuf.Timestamp collected_at = 5;
+
+  seagull.event.v1.Origin origin = 6;
+  seagull.event.v1.Collection collection = 7;
+  seagull.event.v1.Reception reception = 8;
+
+  repeated Item items = 9;
+}
+
+// What a producer sends, and what a gateway admits or refuses whole. It is
+// answered with `seagull.ingest.v1.BatchAck` and refused with
+// `seagull.ingest.v1.Rejection`, the same two messages an event batch is
+// answered with: what a producer may do with its local copy does not change
+// because the records are inventory.
+message RecordBatch {
+  string batch_id = 1;
+  uint32 protocol_version = 2;
+  repeated Record records = 3;
+}
