@@ -10,17 +10,19 @@ must be able to change internally without asking an agent to upgrade.
 ## What is here
 
 ```text
-proto/seagull/event/v1/        the canonical security event
-proto/seagull/ingest/v1/       what an agent sends and what it is told back
-proto/seagull/platform/v1/     the descriptor an agent negotiates against
-proto/seagull/detection/v1/    what the rules decided about an event
-proto/seagull/hunt/v1/         what a person may ask of what was stored
-proto/seagull/control/v1/      who a caller is and what they may do
-proto/seagull/ruleset/v1/      the rules a platform runs, and which set of them
-proto/seagull/alert/v1/        what an operator does about what the rules found
-proto/seagull/incident/v1/     the higher-order story a correlation tells
-proto/seagull/agent/v1/        the machines the platform admits telemetry from
-gen/go/                        generated Go, committed
+proto/seagull/event/v1/         the canonical security event
+proto/seagull/ingest/v1/        what an agent sends and what it is told back
+proto/seagull/platform/v1/      the descriptor an agent negotiates against
+proto/seagull/detection/v1/     what the rules decided about an event
+proto/seagull/hunt/v1/          what a person may ask of what was stored
+proto/seagull/control/v1/       who a caller is and what they may do
+proto/seagull/ruleset/v1/       the rules a platform runs, and which set of them
+proto/seagull/alert/v1/         what an operator does about what the rules found
+proto/seagull/incident/v1/      the higher-order story a correlation tells
+proto/seagull/agent/v1/         the machines the platform admits telemetry from
+proto/seagull/inventory/v1/     what an asset was observed to have
+proto/seagull/vulnerability/v1/ what a source says is wrong with software
+gen/go/                         generated Go, committed
 ```
 
 The generated code is committed so that a consumer needs no code generator to
@@ -152,6 +154,37 @@ record: an agent, a tenant, a state and the revision it was written from. It
 crosses a compacted topic keyed by the agent, so a gateway replays it before it
 serves and follows it afterwards, and learns that an identity is no longer
 honoured without learning who stopped honouring it or why.
+
+## The vulnerability advisory
+
+An `Advisory` is what a source says about one vulnerability, as the platform
+translated it: which versions of which packages are affected, the other ids the
+vulnerability has, and how severe its authors say it is. It is intelligence and
+not a finding — it says nothing about any asset — and it is named by the source
+and the id the source gave it, a version of it by the moment the source last
+changed it.
+
+An ecosystem is named with its release — `Debian:12`, `Ubuntu:22.04:LTS`,
+`Alpine:v3.19` — because a package is compared against one release of its
+distribution, and a package by the name that ecosystem's advisories use, which
+for most distributions is the source package. A version is affected when it lies
+in any of an entry's ranges or is listed in its versions; a list that only
+expands a range is kept whole all the same, because telling the two apart needs
+the ecosystem's ordering of versions. Severities are the vectors or ratings their
+authors wrote, never a score computed from them.
+
+`Provenance` is the platform's to write and never the feed's: the feed and the
+version of its index the advisory was read from, the location, when, the digest
+of the bytes as fetched, the format they were in and the rules they were
+translated with. `aliases` name the same vulnerability; `upstream` names what a
+distribution's advisory derives from, which is not the same vulnerability;
+`related` names the rest.
+
+A `FeedSync` is what one attempt to follow a feed found. `synced_at` is when the
+platform last held everything the feed listed and is carried forward by an
+attempt that did not complete, so the freshness of intelligence never looks
+better than it is; `newest_listed` is how current the feed itself is. `Record`
+carries either, so the log both travel on has one decode path.
 
 ## The acknowledgement
 
