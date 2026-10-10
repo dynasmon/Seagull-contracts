@@ -22,6 +22,7 @@ proto/seagull/incident/v1/      the higher-order story a correlation tells
 proto/seagull/agent/v1/         the machines the platform admits telemetry from
 proto/seagull/inventory/v1/     what an asset was observed to have
 proto/seagull/vulnerability/v1/ what a source says is wrong with software
+proto/seagull/policy/v1/        how an agent is told to run, signed off the platform
 gen/go/                         generated Go, committed
 ```
 
@@ -154,6 +155,46 @@ record: an agent, a tenant, a state and the revision it was written from. It
 crosses a compacted topic keyed by the agent, so a gateway replays it before it
 serves and follows it afterwards, and learns that an identity is no longer
 honoured without learning who stopped honouring it or why.
+
+## The agent policy
+
+A `Policy` changes how agents run without anybody visiting them, and it is
+signed where it is written rather than where it is stored. The key that signs it
+belongs to whoever administers the estate and is held off the platform: the
+platform checks a policy against the public keys it was given, records it and
+hands it to the agents it names, and it cannot write one. An agent accepts a
+policy only under a public key it was provisioned with out of band, the way it
+was given its trust in the platform. A control plane somebody took can withhold
+what was signed and cannot sign anything else.
+
+`SignedPolicy` is a DSSE envelope with DSSE's own field names and numbers. The
+signature covers the payload type and the payload bytes exactly as they travel,
+so a verifier checks it before it decodes anything and nothing is re-encoded to
+be checked, and the platform serves the payload byte for byte as it was
+signed.
+
+A policy names the agents it is for by the identifier each was issued, and an
+agent applies only one that names it. Its `revision` increases across every
+policy published into a tenant, whichever `policy_id` it carries: an agent is
+handed the highest revision that names it and refuses any lower than the one it
+holds, so moving an agent between policies cannot be replayed backwards, and
+going back to earlier settings is signing them again under a newer revision.
+Publishing is activating, because the signature is the authorisation; there is
+no pointer to move.
+
+`expires_at` is required and at most a year after `issued_at`. A policy already
+expired is refused; one that expires while in force stays in force, because an
+agent cannot do better than the last policy it verified, and the agent reports
+that it is running on an expired one — which is how a platform that stopped
+handing out newer policies is noticed.
+
+What a policy sets is a bounded subset of an agent's own configuration: the log
+level, which modules collect and how often, what the files module watches, and
+budgets. A budget lowers the ceiling an agent's configuration sets and never
+raises it, and nothing in a policy names the platform, what the agent trusts,
+its identity or its timeouts, so no policy can turn a verification off or take a
+ceiling away. An agent refuses a policy whole, keeping the one it holds, when
+the configuration it would make is one it does not run on.
 
 ## The vulnerability advisory
 
