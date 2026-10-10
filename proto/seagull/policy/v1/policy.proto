@@ -1,0 +1,280 @@
+syntax = "proto3";
+
+package seagull.policy.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// How an agent is told to run, by somebody who holds a key the platform does
+// not.
+//
+// A policy is signed where it is written and verified where it is applied. The
+// platform stores it, checks it and hands it to the agents it names, and it
+// cannot write one: the key that signs a policy is neither an agent's key nor a
+// key of the platform's own TLS or certificate authority, so a control plane
+// somebody took can withhold what an operator signed and cannot sign anything
+// else. Every agent holds the public keys it accepts a policy from, provisioned
+// the way its trust in the platform is — out of band, never over the
+// connection the policy arrives on.
+//
+// A policy changes a bounded subset of what an agent runs with, inside the
+// ceilings its own configuration sets. It never names the platform, what the
+// agent trusts, its identity or its timeouts, and a budget it carries lowers the
+// agent's own ceiling and never raises it, so no policy can turn a verification
+// off or take a ceiling away.
+message Policy {
+  // Always 1. An agent refuses a policy written to a schema it does not read.
+  uint32 schema_version = 1;
+
+  // The name an operator gives the policy, such as `linux-web`, so a revision
+  // can be traced to what it was meant for. The same pattern an agent
+  // identifier follows, at most 64 bytes. It orders nothing: the revision does.
+  string policy_id = 2;
+
+  // Increases across every policy published into a tenant, whichever policy_id
+  // it carries, and the platform refuses one that does not exceed the highest
+  // it holds there. An agent keeps the highest revision it applied and refuses
+  // any lower one, so moving an agent from one policy to another cannot be
+  // replayed backwards, and going back to earlier settings means signing them
+  // again under a newer revision.
+  uint64 revision = 3;
+
+  Targets targets = 4;
+
+  // When the signer wrote it. An agent refuses one issued more than five
+  // minutes ahead of its own clock.
+  google.protobuf.Timestamp issued_at = 5;
+
+  // Until when the signer vouches for it: required, later than `issued_at` and
+  // at most 366 days after it. A policy already past it is refused wherever it
+  // arrives. One that passes it while in force stays in force, because an agent
+  // cannot do better than the last policy it verified, and the agent says it is
+  // running on an expired policy — which is how a platform that stopped handing
+  // out newer ones is noticed.
+  google.protobuf.Timestamp expires_at = 6;
+
+  // What the policy sets. Empty is meaningful: it returns the agents it names to
+  // what their own configuration says.
+  Settings settings = 7;
+}
+
+// Which agents a policy is for. An agent applies a policy only when it is named
+// here, by the identifier the platform issued it, and a policy that names
+// nobody applies to nobody: there is no wildcard.
+//
+// The platform hands an agent the highest revision of its tenant that names it.
+message Targets {
+  // Between 1 and 10,000 distinct agent identifiers.
+  repeated string agent_ids = 1;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+}
+
+// A collector of the agent's, by the name its configuration gives it. A closed
+// set: a policy naming a module an agent does not have is refused by that agent
+// whole rather than applied in part.
+enum Module {
+  MODULE_UNSPECIFIED = 0;
+  MODULE_AUTHENTICATION = 1;
+  MODULE_INVENTORY = 2;
+  MODULE_PROCESSES = 3;
+  MODULE_FILES = 4;
+  MODULE_NETWORK = 5;
+}
+
+// Whether a module collects. UNSPECIFIED leaves it to the agent's own
+// configuration.
+enum Collection {
+  COLLECTION_UNSPECIFIED = 0;
+  COLLECTION_ENABLED = 1;
+  COLLECTION_DISABLED = 2;
+}
+
+// What a policy sets. Anything it leaves unset is what the agent's own
+// configuration says, and an agent refuses the whole policy, keeping the one it
+// holds, when the configuration it would make is one it does not run on.
+message Settings {
+  // UNSPECIFIED leaves the level to the agent's own configuration.
+  LogLevel log_level = 1;
+
+  // At most one entry per module.
+  repeated ModuleSettings modules = 2;
+
+  Budgets budgets = 3;
+}
+
+message ModuleSettings {
+  Module module = 1;
+  Collection collection = 2;
+
+  // How often a module that takes stock of the host does it. Absent or zero
+  // leaves the agent's own. Between one minute and 24 hours for the inventory, processes
+  // and files modules, between ten seconds and one hour for the network module,
+  // and never set for the authentication module, which follows its source.
+  google.protobuf.Duration interval = 3;
+
+  // The paths the files module watches, replacing the ones the agent's own
+  // configuration names, and set for no other module. Absent leaves the agent's
+  // own. When present: between 1 and 64 distinct absolute paths of at most 4096
+  // bytes, with nothing to resolve, none of them `/` and none within /proc,
+  // /sys, /dev, /tmp or /var/tmp, which hold what the kernel or a service makes
+  // up rather than files a host keeps.
+  Paths paths = 4;
+
+  // What the files module leaves out, replacing the exclusions of the agent's
+  // own configuration. Absent leaves the agent's own, and present and empty
+  // leaves nothing out. At most 256 distinct entries, each either an absolute
+  // path within one of the watched paths, never a whole one of them, or a
+  // pattern a name matches, such as `*.swp`, of at most 255 bytes and without
+  // a `/`.
+  Paths exclude = 5;
+}
+
+// A list whose presence means something: absent leaves the agent's own, and
+// present replaces it.
+message Paths {
+  repeated string paths = 1;
+}
+
+// Ceilings a policy lowers and never raises. Zero, or absent, leaves the agent's
+// own, and where the agent's configuration names less than the policy, the
+// agent keeps its own. Each one bounded by what an agent takes at all.
+message Budgets {
+  // Between 16 MiB and 64 GiB.
+  uint64 spool_max_bytes = 1;
+
+  // Between one hour and 720 hours.
+  google.protobuf.Duration spool_max_age = 2;
+
+  // Between 64 KiB and 8 MiB.
+  uint64 max_batch_bytes = 3;
+
+  // Between 1 and 1000.
+  uint32 max_events_per_batch = 4;
+
+  // Between 1 and 64.
+  uint32 max_inventory_records_per_batch = 5;
+
+  // Between 64 KiB and 1 GiB.
+  uint64 max_upload_bytes_per_second = 6;
+
+  // Between 64 MiB and 8 GiB.
+  uint64 memory_limit_bytes = 7;
+
+  // Between 1 and 64.
+  uint32 max_concurrent_scans = 8;
+
+  // Between 1 MiB and 1 GiB.
+  uint64 max_scan_bytes_per_second = 9;
+
+  // Between 1 and 16.
+  uint32 max_concurrent_uploads = 10;
+}
+
+// A policy as its signer signed it: a DSSE envelope
+// (https://github.com/secure-systems-lab/dsse), with the field names and
+// numbers of DSSE's own envelope.proto, so what crosses the wire is that
+// envelope and its JSON form is the one DSSE tools read.
+//
+// A verifier checks a signature before it decodes `payload`, over the bytes
+// exactly as they arrived, so nothing has to be re-encoded to be checked and a
+// payload nobody signed is never parsed. The payload is stored and served byte
+// for byte as it was signed.
+message SignedPolicy {
+  // A serialized `Policy`, at most 1 MiB.
+  bytes payload = 1;
+
+  // Always `application/vnd.seagull.policy.v1+protobuf`. It is part of what is
+  // signed, so a signature over a policy cannot be presented as one over
+  // anything else the same key signs.
+  string payload_type = 2;
+
+  // Between 1 and 4. One is enough when it verifies under a key the verifier
+  // accepts; several let a signing key be rotated without a moment where agents
+  // that hold only the old key and agents that hold only the new one disagree.
+  repeated Signature signatures = 3;
+}
+
+message Signature {
+  // ECDSA over P-256 with SHA-256, ASN.1 DER encoded, of DSSE's
+  // pre-authentication encoding of `payload_type` and `payload`:
+  // "DSSEv1" SP LEN(payload_type) SP payload_type SP LEN(payload) SP payload,
+  // where SP is one space and LEN the length in bytes in ASCII decimal.
+  bytes sig = 1;
+
+  // The lowercase hex SHA-256 of the DER SubjectPublicKeyInfo of the key that
+  // signed. A hint for choosing which key to try, never a reason to accept one.
+  string keyid = 2;
+}
+
+// Publishing a signed policy into a tenant. The tenant is the caller's to name
+// and is never inside the policy, because an agent cannot check it: an agent
+// knows the identifier it was issued and not the estate it was registered into.
+// Every agent the policy names must be registered in this tenant.
+message Publication {
+  string tenant_id = 1;
+  SignedPolicy policy = 2;
+
+  // Why it was published, kept with what the platform recorded. At most 512
+  // bytes, and not part of what was signed.
+  string note = 3;
+}
+
+// What the platform recorded when it took a policy. Append only: a newer
+// revision is how anything changes, and no record is rewritten.
+message PublishedPolicy {
+  string tenant_id = 1;
+  uint64 revision = 2;
+  string policy_id = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+
+  // How many agents it names.
+  uint32 targets = 6;
+
+  // The lowercase hex SHA-256 of the envelope as it is served, which is what an
+  // agent presents to ask whether anything changed.
+  string digest_sha256 = 7;
+
+  // The `keyid` of every signature that verified under a key the platform
+  // accepts, as the platform computed it rather than as the envelope claimed it.
+  repeated string signed_by = 8;
+
+  string published_by = 9;
+  google.protobuf.Timestamp published_at = 10;
+  string note = 11;
+
+  // The envelope itself, carried when one policy is asked for and left out of
+  // a page of them.
+  SignedPolicy policy = 12;
+}
+
+// What a person asks of the policies published into the tenants they hold.
+message Query {
+  // Empty asks within every tenant the caller holds, and is never a wildcard
+  // beyond them.
+  repeated string tenant_ids = 1;
+
+  // Only the policies that name this agent. Empty asks for all of them.
+  string agent_id = 2;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 3;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged.
+  string cursor = 4;
+}
+
+// Ordered by tenant, then by revision, newest first. An empty `next_cursor`
+// means there is nothing further.
+message Page {
+  repeated PublishedPolicy policies = 1;
+  string next_cursor = 2;
+}
