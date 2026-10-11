@@ -19,7 +19,7 @@ proto/seagull/control/v1/       who a caller is and what they may do
 proto/seagull/ruleset/v1/       the rules a platform runs, and which set of them
 proto/seagull/alert/v1/         what an operator does about what the rules found
 proto/seagull/incident/v1/      the higher-order story a correlation tells
-proto/seagull/agent/v1/         the machines the platform admits telemetry from
+proto/seagull/agent/v1/         the machines the platform admits telemetry from, and what they report
 proto/seagull/inventory/v1/     what an asset was observed to have
 proto/seagull/vulnerability/v1/ what a source says is wrong with software
 proto/seagull/policy/v1/        how an agent is told to run, signed off the platform
@@ -155,6 +155,33 @@ record: an agent, a tenant, a state and the revision it was written from. It
 crosses a compacted topic keyed by the agent, so a gateway replays it before it
 serves and follows it afterwards, and learns that an identity is no longer
 honoured without learning who stopped honouring it or why.
+
+## The agent status
+
+A `Status` is what one agent says of itself at one moment: whether it and each
+of its parts run as they should, what it holds and has not delivered, its
+certificate, the settings and the policy it runs on, what it may do on its host,
+and how the run before this one ended. An agent sends one every `interval` it
+announces, on a stream of its own beside events and inventory, so an agent on a
+host nobody logs into is still heard from. A `StatusBatch` is answered and
+refused with the same `BatchAck` and `Rejection` as every other batch, and the
+platform stamps who sent a report and when it arrived exactly as it stamps an
+event.
+
+A report stands on its own. The platform keeps the newest of each agent, and an
+agent sends its newest rather than a backlog: one that never arrived is made up
+for by the next, and status never competes with telemetry for room or order.
+`installation_id`, `sequence` and `run.boot_id` are what tell one source from
+two: a sequence counts every report an installation writes, across restarts,
+and is never reused, so a copy of an installation shows as one count advancing
+in two places.
+
+What a report says of the agent's own build, privileges and configuration is a
+claim and never an attestation, since a changed binary holding the key reports
+whatever it chooses. `Agent.liveness` is what the platform observes instead: how
+recently reports arrived, against the interval the newest one announced, and
+whether that one said the agent was stopping. Silence is a fact about the
+reports; it never disables or revokes an agent.
 
 ## The agent policy
 

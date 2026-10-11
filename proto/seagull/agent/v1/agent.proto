@@ -3,6 +3,7 @@ syntax = "proto3";
 package seagull.agent.v1;
 
 import "google/protobuf/timestamp.proto";
+import "seagull/agent/v1/status.proto";
 import "seagull/hunt/v1/hunt.proto";
 
 // Where an agent stands with the platform. A closed set, because a transition is
@@ -85,6 +86,20 @@ message Agent {
   // heard from an agent cannot claim it is alive and a busy agent cannot cost a
   // write on the ingest path to say so. Absent when nothing was found.
   google.protobuf.Timestamp last_seen = 12;
+
+  // How recently the agent reported its status, read back like `last_seen`
+  // from where its reports landed, and judged at the moment it is read. An
+  // agent that reports and sends no telemetry is alive and has nothing to say;
+  // one that does neither is silent.
+  Liveness liveness = 13;
+
+  // When the newest status report from this agent reached the platform. Absent
+  // when none did.
+  google.protobuf.Timestamp last_reported = 14;
+
+  // That report itself, carried when one agent is read and left out of a page
+  // of them.
+  Status status = 15;
 }
 
 // One thing somebody did to an agent. Append only: the trail is what makes a
