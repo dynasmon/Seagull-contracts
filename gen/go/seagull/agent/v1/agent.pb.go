@@ -266,7 +266,18 @@ type Agent struct {
 	// read back from where the telemetry landed, so a registry that has never
 	// heard from an agent cannot claim it is alive and a busy agent cannot cost a
 	// write on the ingest path to say so. Absent when nothing was found.
-	LastSeen      *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	LastSeen *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	// How recently the agent reported its status, read back like `last_seen`
+	// from where its reports landed, and judged at the moment it is read. An
+	// agent that reports and sends no telemetry is alive and has nothing to say;
+	// one that does neither is silent.
+	Liveness Liveness `protobuf:"varint,13,opt,name=liveness,proto3,enum=seagull.agent.v1.Liveness" json:"liveness,omitempty"`
+	// When the newest status report from this agent reached the platform. Absent
+	// when none did.
+	LastReported *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_reported,json=lastReported,proto3" json:"last_reported,omitempty"`
+	// That report itself, carried when one agent is read and left out of a page
+	// of them.
+	Status        *Status `protobuf:"bytes,15,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -381,6 +392,27 @@ func (x *Agent) GetRevision() uint64 {
 func (x *Agent) GetLastSeen() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastSeen
+	}
+	return nil
+}
+
+func (x *Agent) GetLiveness() Liveness {
+	if x != nil {
+		return x.Liveness
+	}
+	return Liveness_LIVENESS_UNSPECIFIED
+}
+
+func (x *Agent) GetLastReported() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReported
+	}
+	return nil
+}
+
+func (x *Agent) GetStatus() *Status {
+	if x != nil {
+		return x.Status
 	}
 	return nil
 }
@@ -1303,7 +1335,7 @@ var File_seagull_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x1cseagull/agent/v1/agent.proto\x12\x10seagull.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1aseagull/hunt/v1/hunt.proto\"\xdf\x01\n" +
+	"\x1cseagull/agent/v1/agent.proto\x12\x10seagull.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dseagull/agent/v1/status.proto\x1a\x1aseagull/hunt/v1/hunt.proto\"\xdf\x01\n" +
 	"\bIdentity\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x16\n" +
 	"\x06serial\x18\x02 \x01(\tR\x06serial\x12-\n" +
@@ -1314,7 +1346,7 @@ const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\bPlatform\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\"\n" +
 	"\farchitecture\x18\x02 \x01(\tR\farchitecture\x12\x1a\n" +
-	"\bhostname\x18\x03 \x01(\tR\bhostname\"\x9a\x04\n" +
+	"\bhostname\x18\x03 \x01(\tR\bhostname\"\xc5\x05\n" +
 	"\x05Agent\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12%\n" +
 	"\x0eschema_version\x18\x02 \x01(\rR\rschemaVersion\x12\x1b\n" +
@@ -1330,7 +1362,10 @@ const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"changed_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt\x12\x1a\n" +
 	"\brevision\x18\v \x01(\x04R\brevision\x127\n" +
-	"\tlast_seen\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\"\xef\x01\n" +
+	"\tlast_seen\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\x126\n" +
+	"\bliveness\x18\r \x01(\x0e2\x1a.seagull.agent.v1.LivenessR\bliveness\x12?\n" +
+	"\rlast_reported\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\flastReported\x120\n" +
+	"\x06status\x18\x0f \x01(\v2\x18.seagull.agent.v1.StatusR\x06status\"\xef\x01\n" +
 	"\n" +
 	"Transition\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1a\n" +
@@ -1436,7 +1471,9 @@ var file_seagull_agent_v1_agent_proto_goTypes = []any{
 	(*CertificateRecord)(nil),     // 15: seagull.agent.v1.CertificateRecord
 	(*CertificateHistory)(nil),    // 16: seagull.agent.v1.CertificateHistory
 	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
-	(*v1.TimeRange)(nil),          // 18: seagull.hunt.v1.TimeRange
+	(Liveness)(0),                 // 18: seagull.agent.v1.Liveness
+	(*Status)(nil),                // 19: seagull.agent.v1.Status
+	(*v1.TimeRange)(nil),          // 20: seagull.hunt.v1.TimeRange
 }
 var file_seagull_agent_v1_agent_proto_depIdxs = []int32{
 	17, // 0: seagull.agent.v1.Identity.issued_at:type_name -> google.protobuf.Timestamp
@@ -1447,27 +1484,30 @@ var file_seagull_agent_v1_agent_proto_depIdxs = []int32{
 	17, // 5: seagull.agent.v1.Agent.registered_at:type_name -> google.protobuf.Timestamp
 	17, // 6: seagull.agent.v1.Agent.changed_at:type_name -> google.protobuf.Timestamp
 	17, // 7: seagull.agent.v1.Agent.last_seen:type_name -> google.protobuf.Timestamp
-	0,  // 8: seagull.agent.v1.Transition.from:type_name -> seagull.agent.v1.State
-	0,  // 9: seagull.agent.v1.Transition.to:type_name -> seagull.agent.v1.State
-	17, // 10: seagull.agent.v1.Transition.at:type_name -> google.protobuf.Timestamp
-	4,  // 11: seagull.agent.v1.History.transitions:type_name -> seagull.agent.v1.Transition
-	2,  // 12: seagull.agent.v1.Registration.platform:type_name -> seagull.agent.v1.Platform
-	1,  // 13: seagull.agent.v1.BindingRequest.identity:type_name -> seagull.agent.v1.Identity
-	0,  // 14: seagull.agent.v1.TransitionRequest.to:type_name -> seagull.agent.v1.State
-	18, // 15: seagull.agent.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
-	0,  // 16: seagull.agent.v1.Query.states:type_name -> seagull.agent.v1.State
-	3,  // 17: seagull.agent.v1.Page.agents:type_name -> seagull.agent.v1.Agent
-	0,  // 18: seagull.agent.v1.Admission.state:type_name -> seagull.agent.v1.State
-	17, // 19: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
-	1,  // 20: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
-	1,  // 21: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
-	17, // 22: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
-	15, // 23: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	18, // 8: seagull.agent.v1.Agent.liveness:type_name -> seagull.agent.v1.Liveness
+	17, // 9: seagull.agent.v1.Agent.last_reported:type_name -> google.protobuf.Timestamp
+	19, // 10: seagull.agent.v1.Agent.status:type_name -> seagull.agent.v1.Status
+	0,  // 11: seagull.agent.v1.Transition.from:type_name -> seagull.agent.v1.State
+	0,  // 12: seagull.agent.v1.Transition.to:type_name -> seagull.agent.v1.State
+	17, // 13: seagull.agent.v1.Transition.at:type_name -> google.protobuf.Timestamp
+	4,  // 14: seagull.agent.v1.History.transitions:type_name -> seagull.agent.v1.Transition
+	2,  // 15: seagull.agent.v1.Registration.platform:type_name -> seagull.agent.v1.Platform
+	1,  // 16: seagull.agent.v1.BindingRequest.identity:type_name -> seagull.agent.v1.Identity
+	0,  // 17: seagull.agent.v1.TransitionRequest.to:type_name -> seagull.agent.v1.State
+	20, // 18: seagull.agent.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
+	0,  // 19: seagull.agent.v1.Query.states:type_name -> seagull.agent.v1.State
+	3,  // 20: seagull.agent.v1.Page.agents:type_name -> seagull.agent.v1.Agent
+	0,  // 21: seagull.agent.v1.Admission.state:type_name -> seagull.agent.v1.State
+	17, // 22: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
+	1,  // 23: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
+	1,  // 24: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
+	17, // 25: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
+	15, // 26: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_seagull_agent_v1_agent_proto_init() }
@@ -1475,6 +1515,7 @@ func file_seagull_agent_v1_agent_proto_init() {
 	if File_seagull_agent_v1_agent_proto != nil {
 		return
 	}
+	file_seagull_agent_v1_status_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
