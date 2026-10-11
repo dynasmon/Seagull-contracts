@@ -1,0 +1,305 @@
+syntax = "proto3";
+
+package seagull.agent.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "seagull/event/v1/event.proto";
+
+// What one agent says of itself at one moment: whether it runs as it should,
+// what it holds and has not delivered, what it runs as and on, and how the run
+// before this one ended.
+//
+// It travels on a stream of its own, beside events and inventory and never in
+// their place, so an agent on a host nobody logs into is still heard from. The
+// platform stamps who sent a report and when it arrived, exactly as it stamps an
+// event, and keeps the newest one of each agent. A report says everything it
+// says on its own, so one that never arrived is made up for by the next, and an
+// agent sends its newest rather than a backlog.
+//
+// Everything a report says about the agent's own build, privileges and
+// configuration is a claim and never an attestation: a changed binary that holds
+// the key reports whatever it chooses. What the platform can rely on is what it
+// observes itself — that reports arrive, when, under which certificate, and in
+// which order their sequence runs.
+message Status {
+  // A closed set, because a platform folds the state of a fleet by it.
+  enum Condition {
+    CONDITION_UNSPECIFIED = 0;
+
+    // Doing what it is for.
+    CONDITION_RUNNING = 1;
+
+    // Running short of something, and either recovering on its own or waiting
+    // for an operator, as its reason says.
+    CONDITION_DEGRADED = 2;
+
+    // Not doing what it is for.
+    CONDITION_FAILED = 3;
+
+    // Not asked to run.
+    CONDITION_DISABLED = 4;
+
+    // Stopping, which an agent says in the last report of a run, so a platform
+    // can tell an agent somebody stopped from one that went quiet.
+    CONDITION_STOPPED = 5;
+  }
+
+  // How the run before this one ended, as the agent found it when this one
+  // started.
+  enum Ending {
+    // The agent could not tell.
+    ENDING_UNSPECIFIED = 0;
+
+    // The installation never ran before.
+    ENDING_NONE = 1;
+
+    // It said it stopped, and why.
+    ENDING_STOPPED = 2;
+
+    // It ended without saying so: it was killed, it crashed or the host lost
+    // power.
+    ENDING_INTERRUPTED = 3;
+  }
+
+  // The process that wrote the report and the one before it.
+  message Run {
+    // The kernel's identifier of the boot the host is in, such as Linux's
+    // `/proc/sys/kernel/random/boot_id`, at most 64 bytes. The same sequence
+    // reported from two boots at once is two hosts holding one installation.
+    string boot_id = 1;
+
+    google.protobuf.Timestamp started_at = 2;
+
+    Ending previous_ending = 3;
+
+    // When the run before it last said anything of itself. Absent when nothing
+    // is known of it.
+    google.protobuf.Timestamp previous_seen_at = 4;
+
+    // Why the run before it stopped, when it said so, at most 1024 bytes.
+    string previous_reason = 5;
+  }
+
+  // The binary, as it describes itself.
+  message Build {
+    // The release, such as `v0.1.0`, or `(devel)` for a build of no release.
+    // At most 128 bytes.
+    string version = 1;
+
+    // The source revision it was built from, when the build recorded one. At
+    // most 64 bytes.
+    string revision = 2;
+
+    // The compiler release, such as `go1.26.9`. At most 32 bytes.
+    string toolchain = 3;
+
+    // The platform it was built for, such as `linux` and `amd64`. At most 32
+    // bytes each.
+    string os = 4;
+    string architecture = 5;
+  }
+
+  // One part of the agent, by the name the agent gives it, at most 64 bytes.
+  message Component {
+    string name = 1;
+    Condition condition = 2;
+    google.protobuf.Timestamp since = 3;
+
+    // Why it is not running as it should, in the agent's words, at most 1024
+    // bytes.
+    string reason = 4;
+  }
+
+  // One collector, by the name the agent's configuration gives it, at most 64
+  // bytes.
+  message Module {
+    string name = 1;
+    Condition condition = 2;
+    google.protobuf.Timestamp since = 3;
+
+    // How many times the agent started it again since this run began.
+    uint32 restarts = 4;
+
+    // What it is doing or why it is not, at most 1024 bytes.
+    string reason = 5;
+  }
+
+  // What the agent holds on disk and has not yet delivered.
+  message Spool {
+    uint64 bytes = 1;
+
+    // What it may hold. A spool that reaches it admits nothing more and evicts
+    // nothing, so `bytes` against it is the pressure a collector feels.
+    uint64 max_bytes = 2;
+
+    // At most 8, one per stream, such as `events` and `inventory`.
+    repeated Stream streams = 3;
+  }
+
+  // One stream of the spool, by the name the agent gives it, at most 64 bytes.
+  message Stream {
+    string name = 1;
+
+    // The records waiting to be delivered, and the bytes they take.
+    uint64 outstanding = 2;
+    uint64 bytes = 3;
+
+    // When the oldest waiting record was admitted. Absent when none waits.
+    google.protobuf.Timestamp oldest_admitted = 4;
+
+    // When the platform last acknowledged a batch of it as durable. Absent when
+    // nothing was delivered since the run began.
+    google.protobuf.Timestamp last_delivered = 5;
+
+    // Since when the spool refuses records for lack of room, and since when
+    // delivery fails. Absent while neither happens.
+    google.protobuf.Timestamp paused_since = 6;
+    google.protobuf.Timestamp failing_since = 7;
+
+    // Counted since the installation began: the records delivered, and those
+    // that left the spool undelivered because they grew too old, were found
+    // damaged or were refused for good.
+    uint64 delivered = 8;
+    uint64 expired = 9;
+    uint64 lost = 10;
+    uint64 quarantined = 11;
+  }
+
+  // The certificate the agent authenticates with, as the installation records
+  // it.
+  message Credential {
+    // Moves by one with every certificate the installation activates.
+    uint64 generation = 1;
+
+    google.protobuf.Timestamp not_after = 2;
+
+    // When the agent means to renew it, and since when renewing fails. Absent
+    // when neither is known.
+    google.protobuf.Timestamp renews_at = 3;
+    google.protobuf.Timestamp renewal_failing_since = 4;
+  }
+
+  // What the agent runs on.
+  message Configuration {
+    // The lowercase hex SHA-256 of the settings in force, the agent's own
+    // configuration with any policy laid over it, as the agent encodes them. It
+    // changes whenever any setting does, so it names a change and not what it
+    // was.
+    string digest_sha256 = 1;
+
+    // The policy in force, absent when none is: its `policy_id`, `revision` and
+    // `expires_at`, as signed.
+    string policy_id = 2;
+    uint64 policy_revision = 3;
+    google.protobuf.Timestamp policy_expires_at = 4;
+  }
+
+  // What the process may do on the host, as the kernel reports it to the
+  // process itself.
+  message Privileges {
+    // The account it runs as and every group it holds, as the host numbers
+    // them, such as `997`: at most 64 groups, and at most 64 bytes each.
+    string user = 1;
+    repeated string groups = 2;
+
+    // The capabilities it holds, permitted or effective, by their names, such
+    // as `CAP_DAC_READ_SEARCH`: at most 64, of at most 32 bytes each. Empty is
+    // none.
+    repeated string capabilities = 3;
+
+    // Whether nothing it runs can gain a privilege it lacks.
+    bool no_new_privileges = 4;
+
+    // How the kernel filters its system calls: `disabled`, `strict`, `filter`
+    // or `unsupported`, at most 32 bytes.
+    string seccomp = 5;
+  }
+
+  // Always 1. A platform refuses a report written to a schema it does not read.
+  uint32 schema_version = 1;
+
+  // The installation that wrote it: the agent's identifier for the state it
+  // keeps on its host, at most 64 bytes. A replaced installation is a new one
+  // and counts its reports from 1 again; a copy of one goes on counting from
+  // where the original was, in two places at once.
+  string installation_id = 2;
+
+  // Counts the reports an installation writes, from 1, across every restart,
+  // and is never reused: a report sent again after its answer was lost keeps
+  // its sequence, and the next report takes the next one.
+  uint64 sequence = 3;
+
+  // When the agent wrote it, by its own clock, admitted within the same window
+  // an event's timestamps are.
+  google.protobuf.Timestamp reported_at = 4;
+
+  // How long until the agent reports again: between 10 seconds and one hour.
+  // The platform judges how late an agent is against what it said here, so an
+  // agent told to report rarely is not taken for one that went quiet.
+  google.protobuf.Duration interval = 5;
+
+  // Identity, tenant and reception are the platform's to write, from the
+  // verified certificate, the registry and its own clock, exactly as for an
+  // event; `origin.host` is the host as the agent observed it.
+  seagull.event.v1.Origin origin = 6;
+  seagull.event.v1.Reception reception = 7;
+
+  Run run = 8;
+  Build build = 9;
+
+  // The agent as a whole, which is the worst of its components.
+  Condition condition = 10;
+
+  // At most 32: the parts the agent is made of, such as `configuration`,
+  // `collection`, `spool`, `delivery`, `credential`, `resources` and `policy`.
+  repeated Component components = 11;
+
+  // At most 32: every collector the agent has, enabled or not, so what a
+  // release can collect is read here.
+  repeated Module modules = 12;
+
+  Spool spool = 13;
+
+  // Absent while the installation holds no certificate.
+  Credential credential = 14;
+
+  Configuration configuration = 15;
+  Privileges privileges = 16;
+}
+
+// How recently an agent reported, judged when it is read against the interval
+// its newest report announced. It is observed and never decided: silence is a
+// fact about the reports and says nothing about whether the agent is still
+// trusted, so no agent is disabled or revoked for going quiet.
+enum Liveness {
+  // It never reported, or what it reported cannot be read.
+  LIVENESS_UNSPECIFIED = 0;
+
+  // Its newest report arrived within the platform's allowance for the interval
+  // it announced.
+  LIVENESS_ACTIVE = 1;
+
+  // Past that allowance, and not yet past the point the platform takes for
+  // silence.
+  LIVENESS_LATE = 2;
+
+  // Past that point too.
+  LIVENESS_SILENT = 3;
+
+  // Its newest report said it was stopping.
+  LIVENESS_STOPPED = 4;
+}
+
+// What an agent sends, and what a gateway admits or refuses whole. It is
+// answered with `seagull.ingest.v1.BatchAck` and refused with
+// `seagull.ingest.v1.Rejection`, the same two messages an event or an inventory
+// batch is answered with, behind the same gate.
+message StatusBatch {
+  string batch_id = 1;
+  uint32 protocol_version = 2;
+
+  // Between 1 and 16. An agent sends its newest report, and keeps nothing older
+  // to send once a newer one is written.
+  repeated Status reports = 3;
+}
