@@ -23,6 +23,7 @@ proto/seagull/agent/v1/         the machines the platform admits telemetry from,
 proto/seagull/inventory/v1/     what an asset was observed to have
 proto/seagull/vulnerability/v1/ what a source says is wrong with software
 proto/seagull/policy/v1/        how an agent is told to run, signed off the platform
+proto/seagull/update/v1/        which releases an agent may install, signed off the platform
 gen/go/                         generated Go, committed
 ```
 
@@ -183,6 +184,11 @@ recently reports arrived, against the interval the newest one announced, and
 whether that one said the agent was stopping. Silence is a fact about the
 reports; it never disables or revokes an agent.
 
+`update` says where the newest update the platform asked of the agent stands,
+and its `failure` keeps an update that went wrong apart from a platform that
+could not be reached, so a rollout can stop on the one without stopping on the
+other.
+
 ## The agent policy
 
 A `Policy` changes how agents run without anybody visiting them, and it is
@@ -222,6 +228,46 @@ raises it, and nothing in a policy names the platform, what the agent trusts,
 its identity or its timeouts, so no policy can turn a verification off or take a
 ceiling away. An agent refuses a policy whole, keeping the one it holds, when
 the configuration it would make is one it does not run on.
+
+## The agent update
+
+An update is authorized off the platform, the way a policy is, and by the roles
+of The Update Framework rather than by a single key. A `Root` names the keys of
+two roles and how many of each must sign: the root role signs the next root and
+the catalog role signs a `Catalog`, the list of every release agents may
+install. Nobody holds any of those keys on the platform: it verifies what it is
+given exactly as an agent does, keeps it and hands it on, so a control plane
+somebody took can withhold an update and cannot authorize one. Both travel as
+DSSE envelopes, checked before they are decoded and served byte for byte as they
+were signed.
+
+An agent is provisioned with a root out of band, beside its trust in the
+platform, and moves to a newer one only through the chain: each version is
+trusted when a threshold of the previous root's root keys and a threshold of its
+own signed it. Rotating or revoking a key is publishing the next root without
+it. No role is online, so there is no timestamp role, and expiry is the
+freshness an agent relies on: an agent installs nothing under a root or a
+catalog that ran out, and an operator signs a new catalog before the one in
+force does.
+
+A catalog's `version` only increases, and an agent refuses one lower than the
+highest it verified, so a catalog that withdrew a release cannot be swapped for
+an older one that still named it. Each `Release` is one package for one
+platform: its version, the digest and size of the package, the revision it was
+built from, the oldest version it may be installed over and the generation of
+the local state it keeps. An agent never installs an older release than the one
+it runs, unless that release names the one it runs in `replaces`, which is how
+an operator takes agents back from a release that went wrong, and never one
+that cannot read the state it keeps.
+
+The catalog says what may be installed; which agent runs which release, and
+when, is the platform's to decide and is never signed. An `Assignment` points
+agents at a version the newest catalog names, and an `Offer` is what an agent is
+handed when it asks: the roots, the newest catalog and the version the platform
+wants it to run. The platform keeps a package by its digest and hands it only to
+an agent it wants to run that release, and the agent checks every byte against
+the catalog before anything installs it. Whatever the platform decides, it can
+move an agent only between releases an operator authorized.
 
 ## The vulnerability advisory
 

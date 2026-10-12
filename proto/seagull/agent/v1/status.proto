@@ -216,6 +216,85 @@ message Status {
     string seccomp = 5;
   }
 
+  // Where the newest update the platform asked of the agent stands, as the agent
+  // knows it. An update failing is told apart from the platform being out of
+  // reach, so a fleet can stop handing out a release that goes wrong without
+  // mistaking an outage for one.
+  message Update {
+    // A closed set, because a platform folds the progress of a rollout by it.
+    enum Stage {
+      STAGE_UNSPECIFIED = 0;
+
+      // Fetching the package of the release it was asked to run.
+      STAGE_DOWNLOADING = 1;
+
+      // The package is verified and handed to the installer, which holds the
+      // privilege the agent lacks and verifies it again.
+      STAGE_STAGED = 2;
+
+      // The installer is installing it.
+      STAGE_INSTALLING = 3;
+
+      // The release runs, and the installer is checking that it runs as it
+      // should.
+      STAGE_CHECKING = 4;
+
+      // The release it was asked to run is installed and passed its check.
+      STAGE_INSTALLED = 5;
+
+      // The release failed its check, and the one before it was installed
+      // again.
+      STAGE_ROLLED_BACK = 6;
+
+      // It stopped short of the release, as `failure` says, and runs what it
+      // ran before.
+      STAGE_FAILED = 7;
+    }
+
+    // What went wrong last, if anything. A closed set.
+    enum Failure {
+      FAILURE_UNSPECIFIED = 0;
+
+      // The platform could not be reached, or did not hand the package over: a
+      // fact about the connection rather than about the release. The agent
+      // tries again.
+      FAILURE_UNREACHABLE = 1;
+
+      // What arrived is not what was signed, or no key the agent trusts signed
+      // it.
+      FAILURE_UNVERIFIED = 2;
+
+      // The release is authorized and not one this agent may install: another
+      // platform, a catalog or root that ran out, an older release it may not
+      // go back to, or one that cannot read the state it keeps.
+      FAILURE_REFUSED = 3;
+
+      // The host's package manager did not install it.
+      FAILURE_INSTALLATION = 4;
+
+      // It installed and did not run as it should.
+      FAILURE_UNHEALTHY = 5;
+    }
+
+    Stage stage = 1;
+
+    // The release it is moving to or moved to, as the catalog names it, at
+    // most 128 bytes.
+    string version = 2;
+
+    // The catalog that authorized it, and the newest root the agent trusts.
+    uint64 catalog_version = 3;
+    uint64 root_version = 4;
+
+    // When it reached `stage`.
+    google.protobuf.Timestamp since = 5;
+
+    Failure failure = 6;
+
+    // What went wrong, in the agent's words, at most 1024 bytes.
+    string reason = 7;
+  }
+
   // Always 1. A platform refuses a report written to a schema it does not read.
   uint32 schema_version = 1;
 
@@ -266,6 +345,10 @@ message Status {
 
   Configuration configuration = 15;
   Privileges privileges = 16;
+
+  // Absent while no update was asked of the agent, or where it does not take
+  // updates.
+  Update update = 17;
 }
 
 // How recently an agent reported, judged when it is read against the interval
