@@ -1,0 +1,337 @@
+syntax = "proto3";
+
+package seagull.update.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The keys trusted to say which releases agents may install, and how many of
+// them must agree.
+//
+// Two kinds of metadata authorize an update, after the roles of The Update
+// Framework (https://theupdateframework.io): a root, which names the keys and
+// thresholds of both roles, and a catalog, which names every release agents may
+// install. Both are signed off the platform by whoever administers the estate.
+// No key that signs either is held by the platform, by an agent, or by a TLS or
+// certificate authority of theirs: the platform checks what it is given, keeps
+// it and hands it on, so a control plane somebody took can withhold an update
+// and cannot authorize one. No role is online, so there is no timestamp role: a
+// catalog's expiry is the freshness an agent relies on, and an operator signs a
+// new catalog before the one in force runs out.
+//
+// An agent starts from a root provisioned out of band, the way its trust in the
+// platform is, and moves to a newer one only through the chain: version N+1 is
+// trusted when a threshold of the root keys of version N and a threshold of its
+// own root keys signed it. Rotating or revoking a key is publishing the next
+// root without it.
+message Root {
+  // Always 1. A verifier refuses a root written to a schema it does not read.
+  uint32 schema_version = 1;
+
+  // 1 for the first root, and exactly one more than the root it replaces. A
+  // verifier never goes back to a lower version and never skips one.
+  uint64 version = 2;
+
+  // When the signers wrote it. A verifier refuses one issued more than five
+  // minutes ahead of its own clock.
+  google.protobuf.Timestamp issued_at = 3;
+
+  // Required, later than `issued_at` and at most 366 days after it. A root past
+  // it still leads to the next one in the chain, and the newest root a verifier
+  // reaches must not be past it: an agent whose newest root expired installs
+  // nothing until it is handed a newer one, so a platform that stops handing
+  // out newer metadata cannot hold a fleet on old releases unnoticed.
+  google.protobuf.Timestamp expires_at = 4;
+
+  // Every key either role names: between 1 and 16, with distinct key ids.
+  repeated Key keys = 5;
+
+  // Who signs the next root.
+  Role root = 6;
+
+  // Who signs a catalog.
+  Role catalog = 7;
+}
+
+// A public key a role may name.
+message Key {
+  // The lowercase hex SHA-256 of `public_key`. A verifier computes it from the
+  // key and refuses a root where the two disagree.
+  string keyid = 1;
+
+  // An ECDSA public key over P-256, as a DER SubjectPublicKeyInfo.
+  bytes public_key = 2;
+}
+
+message Role {
+  // Between 1 and 8 distinct key ids, each naming one of the root's `keys`.
+  repeated string keyids = 1;
+
+  // How many of those keys must have signed: at least 1, and at most as many
+  // as `keyids` names.
+  uint32 threshold = 2;
+}
+
+// Every release agents may install, signed by the catalog role of the root a
+// verifier trusts.
+//
+// A catalog says what may be installed. Which agent installs which release, and
+// when, is the platform's to decide and is never signed. An agent installs only
+// a release the newest catalog it verified names for its own platform, and
+// holds it to everything the release says of itself, so whatever the platform
+// decides, it can move an agent only between releases an operator authorized,
+// and never back past what a release allows.
+message Catalog {
+  // Always 1. A verifier refuses a catalog written to a schema it does not
+  // read.
+  uint32 schema_version = 1;
+
+  // Increases with every catalog an operator signs. A verifier keeps the
+  // highest it verified and refuses any lower one, so a catalog that withdrew a
+  // release cannot be replaced by an older one that still named it.
+  uint64 version = 2;
+
+  // When the signers wrote it. A verifier refuses one issued more than five
+  // minutes ahead of its own clock.
+  google.protobuf.Timestamp issued_at = 3;
+
+  // Required, later than `issued_at` and at most 366 days after it. An agent
+  // installs nothing under a catalog past it, so a release withdrawn from a
+  // newer catalog stops being installable once the older one runs out, even
+  // where the newer one never arrived.
+  google.protobuf.Timestamp expires_at = 4;
+
+  // At most 256, and no two for the same version on the same platform. Empty
+  // is meaningful: it authorizes nothing.
+  repeated Release releases = 5;
+}
+
+// One package of one release of the agent, for one platform.
+message Release {
+  // The release as its binary reports itself, such as `v0.2.0`: a semantic
+  // version (https://semver.org) with a leading `v`, at most 128 bytes.
+  // Releases are ordered by semantic version precedence.
+  string version = 1;
+
+  Platform platform = 2;
+  Payload payload = 3;
+  Source source = 4;
+  Compatibility compatibility = 5;
+
+  // Versions later than this one that it may replace, which is how an operator
+  // takes agents back from a release that went wrong: an agent running one of
+  // them installs this release although it is older, and an agent running any
+  // other later version refuses it. At most 16, each later than `version`.
+  // Empty for a release that only ever moves an agent forward.
+  repeated string replaces = 6;
+}
+
+// Where a package installs.
+message Platform {
+  // The operating system and the architecture, as Go names them, such as
+  // `linux` and `amd64`. At most 32 bytes each.
+  string os = 1;
+  string architecture = 2;
+
+  Format format = 3;
+}
+
+// How a release is packaged, which decides how it is installed. A closed set:
+// an agent refuses a release in a format it does not install.
+enum Format {
+  FORMAT_UNSPECIFIED = 0;
+
+  // A Debian package, installed by the host's package manager.
+  FORMAT_DEB = 1;
+}
+
+// The package, byte for byte.
+message Payload {
+  // The SHA-256 of the package, 32 bytes. The platform serves a package by this
+  // digest and by nothing else.
+  bytes sha256 = 1;
+
+  // Its length in bytes, between 1 and 256 MiB. A verifier reads no more than
+  // this, so a package that runs on past it is refused before it is held whole.
+  uint64 size = 2;
+}
+
+// What the release was built from, which is what identifies it beyond its
+// version.
+message Source {
+  // The repository, such as `github.com/dynasmon/Seagull-agent-v2`, at most 256
+  // bytes.
+  string repository = 1;
+
+  // The revision the binary records it was built from: lowercase hex, 40 or 64
+  // characters. An installed release that reports another revision is not the
+  // one that was authorized.
+  string revision = 2;
+}
+
+// What a release can take over from the release an agent runs.
+message Compatibility {
+  // The oldest version an agent may run and still install this release over
+  // it. An agent running an older one installs an intermediate release first.
+  // Empty admits any.
+  string minimum_version = 1;
+
+  // The generation of the local state the release keeps, at least 1: one more
+  // than its predecessor's whenever it keeps its state in a way an earlier
+  // release cannot read. A release reads the generation of every release it may
+  // be installed over and none later than its own, so an agent refuses to go
+  // back to a release once its state was moved past that release's generation.
+  uint32 state_generation = 2;
+}
+
+// Metadata as its signers signed it: a DSSE envelope
+// (https://github.com/secure-systems-lab/dsse), with the field names and
+// numbers of DSSE's own envelope.proto, so what crosses the wire is that
+// envelope and its JSON form is the one DSSE tools read.
+//
+// A verifier checks the signatures before it decodes `payload`, over the bytes
+// exactly as they arrived, so nothing has to be encoded again to be checked and
+// metadata nobody signed is never parsed. The platform keeps and serves an
+// envelope byte for byte as it was signed.
+message Envelope {
+  // A serialized `Root` or `Catalog`, at most 1 MiB.
+  bytes payload = 1;
+
+  // `application/vnd.seagull.update.v1.root+protobuf` for a root and
+  // `application/vnd.seagull.update.v1.catalog+protobuf` for a catalog. It is
+  // part of what is signed, so a signature over one cannot be presented as one
+  // over the other, or over anything else the same key signs.
+  string payload_type = 2;
+
+  // Between 1 and 16. A verifier counts the distinct keys of the role that
+  // signed and accepts the metadata when they reach the role's threshold.
+  repeated Signature signatures = 3;
+}
+
+message Signature {
+  // ECDSA over P-256 with SHA-256, ASN.1 DER encoded, of DSSE's
+  // pre-authentication encoding of `payload_type` and `payload`:
+  // "DSSEv1" SP LEN(payload_type) SP payload_type SP LEN(payload) SP payload,
+  // where SP is one space and LEN the length in bytes in ASCII decimal.
+  bytes sig = 1;
+
+  // The `keyid` of the key that signed. A hint for choosing which key to try,
+  // never a reason to accept one.
+  string keyid = 2;
+}
+
+// What the platform hands an agent that asks whether to update.
+message Offer {
+  // The roots the platform holds, oldest first, at most the newest 64. An
+  // agent walks the chain from the version after the one it trusts and ignores
+  // the rest.
+  repeated Envelope roots = 1;
+
+  // The newest catalog the platform holds. Absent while none was published.
+  Envelope catalog = 2;
+
+  // The version the platform wants this agent to run. Empty while it wants
+  // nothing of it, and the agent keeps the release it runs.
+  string version = 3;
+}
+
+// Publishing the next root. The platform verifies it against the newest root it
+// holds, exactly as an agent does, and refuses any version but the next one.
+message RootPublication {
+  Envelope root = 1;
+
+  // Why it was published, kept with what the platform recorded. At most 512
+  // bytes, and not part of what was signed.
+  string note = 2;
+}
+
+// Publishing a catalog. The platform verifies it under the newest root it holds,
+// refuses a version that does not exceed the newest catalog's, and refuses one
+// that names a package it was not given.
+message CatalogPublication {
+  Envelope catalog = 1;
+
+  // At most 512 bytes, and not part of what was signed.
+  string note = 2;
+}
+
+// What the platform recorded when it took a root. Append only.
+message PublishedRoot {
+  uint64 version = 1;
+  google.protobuf.Timestamp issued_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+
+  // The lowercase hex SHA-256 of the envelope as it is served.
+  string digest_sha256 = 4;
+
+  // The `keyid` of every signature that verified, as the platform computed it
+  // rather than as the envelope claimed it.
+  repeated string signed_by = 5;
+
+  string published_by = 6;
+  google.protobuf.Timestamp published_at = 7;
+  string note = 8;
+}
+
+// What the platform recorded when it took a catalog. Append only: a newer
+// catalog is how anything changes.
+message PublishedCatalog {
+  uint64 version = 1;
+  google.protobuf.Timestamp issued_at = 2;
+  google.protobuf.Timestamp expires_at = 3;
+
+  // How many releases it names.
+  uint32 releases = 4;
+
+  // The lowercase hex SHA-256 of the envelope as it is served.
+  string digest_sha256 = 5;
+
+  // The `keyid` of every signature that verified, as the platform computed it.
+  repeated string signed_by = 6;
+
+  string published_by = 7;
+  google.protobuf.Timestamp published_at = 8;
+  string note = 9;
+}
+
+// What the platform recorded when it was given a package. A package is kept by
+// its digest before any catalog names it, and the platform hands it only to an
+// agent it wants to run a release whose payload it is.
+message PublishedPackage {
+  // The SHA-256 of the package, 32 bytes.
+  bytes sha256 = 1;
+
+  uint64 size = 2;
+  string published_by = 3;
+  google.protobuf.Timestamp published_at = 4;
+}
+
+// Which release the platform wants agents of a tenant to run. The platform's to
+// decide, by whoever may change those agents there, and never signed: an agent
+// still installs only what the newest catalog it verified allows it.
+message Assignment {
+  string tenant_id = 1;
+
+  // Between 1 and 10,000 distinct identifiers of agents registered in the
+  // tenant.
+  repeated string agent_ids = 2;
+
+  // A version the newest catalog names. Empty withdraws what was assigned, and
+  // the agents keep the release they run.
+  string version = 3;
+
+  // Why, kept with what the platform recorded. At most 512 bytes.
+  string note = 4;
+}
+
+// What the platform recorded when it took an assignment.
+message Assigned {
+  string tenant_id = 1;
+  string version = 2;
+
+  // How many agents it now wants to run that version.
+  uint32 agents = 3;
+
+  string assigned_by = 4;
+  google.protobuf.Timestamp assigned_at = 5;
+  string note = 6;
+}
