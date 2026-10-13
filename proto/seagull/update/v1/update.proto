@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package seagull.update.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 // The keys trusted to say which releases agents may install, and how many of
@@ -307,7 +308,9 @@ message PublishedPackage {
 
 // Which release the platform wants agents of a tenant to run. The platform's to
 // decide, by whoever may change those agents there, and never signed: an agent
-// still installs only what the newest catalog it verified allows it.
+// still installs only what the newest catalog it verified allows it. An agent
+// assigned a release one by one runs that release whatever a rollout of its
+// tenant says, until the assignment is withdrawn.
 message Assignment {
   string tenant_id = 1;
 
@@ -334,4 +337,213 @@ message Assigned {
   string assigned_by = 4;
   google.protobuf.Timestamp assigned_at = 5;
   string note = 6;
+}
+
+// Moving the agents of a tenant to one release a wave at a time. Like an
+// assignment, it is the platform's to decide and never signed: a rollout
+// changes which agents are asked to run a release, and when, and nothing an
+// agent verifies, so an agent still installs only what the newest catalog it
+// verified allows it.
+//
+// Each wave opens the release to more of the rollout's agents. The platform
+// opens the next one on its own once the wave ran for its `soak` and enough of
+// the agents opened so far run the release; a wave with no soak waits for an
+// operator to advance the rollout. Once `failures` agents failed the release —
+// it did not verify, did not install or did not run as it should, as their
+// status reports say — the platform pauses the rollout, and a paused rollout
+// asks nothing of any agent, so the agents that had not moved keep the release
+// they run. An agent that could not reach the platform, or that refused the
+// release, has not failed it.
+//
+// A tenant has at most one rollout in force, and a new one takes over from it.
+message Rollout {
+  // The tenant whose agents it moves.
+  string tenant_id = 1;
+
+  // The release it moves them to: a version the newest catalog names. An
+  // older release than the one an agent runs moves it back only where that
+  // release replaces the one it runs, which is how a rollout takes agents
+  // back from a release that went wrong.
+  string version = 2;
+
+  // The agents it may move: every agent registered in the tenant when empty,
+  // otherwise between 1 and 10,000 distinct agents registered in it.
+  repeated string agent_ids = 3;
+
+  // Between 1 and 16, in the order they open. The first opens as the platform
+  // takes the rollout, and the last opens the release to all of its agents.
+  repeated Wave waves = 4;
+
+  // How many agents failing the release pause the rollout: between 1 and
+  // 10,000, so 1 pauses it at the first failure.
+  uint32 failures = 5;
+
+  // Why, kept with what the platform recorded. At most 512 bytes.
+  string note = 6;
+}
+
+// How far a rollout reaches once a wave opens, and what lets the next one
+// open.
+message Wave {
+  // Agents named one by one, which is how a canary is chosen: between 1 and
+  // 100 distinct agents of the rollout. Empty for a wave that opens a share.
+  repeated string agent_ids = 1;
+
+  // The share of the rollout's agents the release reaches once this wave
+  // opens, in percent: between 1 and 100, and more than any earlier wave's.
+  // Zero for a wave that names agents.
+  //
+  // An agent's place in a rollout is decided by the rollout and the agent
+  // alone: the first eight bytes of the SHA-256 of `rollout_id`, one zero byte
+  // and `agent_id`, read as a big-endian integer, modulo 10,000. A wave reaches
+  // every agent whose place is below `percent` times 100. So reconnecting,
+  // renewing a certificate or rotating a key never moves an agent from one
+  // wave to another, an agent registered while a rollout runs takes its place
+  // like any other, and each rollout reaches the agents of a tenant in an
+  // order of its own.
+  uint32 percent = 2;
+
+  // How long the wave runs before the next one may open: between one minute
+  // and 30 days. Absent, the next wave waits for an operator to advance the
+  // rollout. The last wave has none, since nothing opens after it.
+  google.protobuf.Duration soak = 3;
+
+  // How many of the agents the waves opened so far must run the release
+  // before the next wave opens on its own: between 1 and 10,000 when `soak` is
+  // set, and zero otherwise.
+  uint32 running = 4;
+}
+
+// What the platform recorded of a rollout, and how far it went.
+message RolloutRecord {
+  // A closed set, because operators and their tools act on it.
+  enum State {
+    STATE_UNSPECIFIED = 0;
+
+    // Opening its waves as their gates allow, and asking the agents they
+    // reach to run the release.
+    STATE_ACTIVE = 1;
+
+    // Asking nothing of any agent until an operator resumes it.
+    STATE_PAUSED = 2;
+
+    // Stopped for good by an operator, asking nothing of any agent.
+    STATE_ABORTED = 3;
+
+    // Taken over by a newer rollout of the tenant, for good.
+    STATE_SUPERSEDED = 4;
+  }
+
+  // Chosen by the platform when it took the rollout: a UUID, in its canonical
+  // lowercase form.
+  string rollout_id = 1;
+
+  // The rollout as it was taken. A page of rollouts leaves out its
+  // `agent_ids`.
+  Rollout rollout = 2;
+
+  State state = 3;
+
+  // The newest wave opened, counted from 0, and when it opened.
+  uint32 wave = 4;
+  google.protobuf.Timestamp wave_opened_at = 5;
+
+  string created_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+
+  // The last change of its state or of its wave: who made it — the platform
+  // itself when a gate opened a wave or paused the rollout — when, and why.
+  string changed_by = 8;
+  google.protobuf.Timestamp changed_at = 9;
+  string reason = 10;
+
+  RolloutProgress progress = 11;
+}
+
+// What the agents a rollout reached said of its release, as the platform last
+// read their status. Each agent counts once, by its newest report.
+message RolloutProgress {
+  // When the platform last read it. Absent until it first did.
+  google.protobuf.Timestamp evaluated_at = 1;
+
+  // The agents the rollout may move, and those its open waves reach.
+  uint32 agents = 2;
+  uint32 reached = 3;
+
+  // Of those reached: the agents that run the release, by the version they
+  // report of themselves.
+  uint32 running = 4;
+
+  // Those that failed it and count toward the rollout's `failures`, and those
+  // whose failure an operator resumed the rollout past, which do not.
+  uint32 failed = 5;
+  uint32 acknowledged = 6;
+
+  // Those that cannot take it, as their reports say — updates are off, they
+  // run on another platform or keep newer state, or run a release it is not
+  // installed over — or that refused it.
+  uint32 ineligible = 7;
+
+  // Those assigned a release one by one, which the rollout leaves to that
+  // assignment.
+  uint32 pinned = 8;
+
+  // The rest: on their way to the release, unable to reach the platform, or
+  // not reporting.
+  uint32 pending = 9;
+}
+
+// Changing the course of a rollout, which whoever may change the agents of its
+// tenant does. A change that does not apply to the rollout as it stands is
+// refused.
+message RolloutChange {
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+
+    // Ask nothing more of any agent, so the agents that had not moved keep the
+    // release they run. Only an active rollout pauses.
+    ACTION_PAUSE = 1;
+
+    // Go on from where it paused. The agents the platform last read as failing
+    // no longer count toward the rollout's `failures`; a failure it reads
+    // afterwards does, and a failure it read before the rollout started counts
+    // like any other.
+    ACTION_RESUME = 2;
+
+    // Open the next wave now, whatever its gate says. Only an active rollout
+    // with a wave left to open advances.
+    ACTION_ADVANCE = 3;
+
+    // Stop for good, asking nothing more of any agent. Taking agents back from
+    // the release is a rollout of its own, to a release that replaces it.
+    ACTION_ABORT = 4;
+  }
+
+  string tenant_id = 1;
+  string rollout_id = 2;
+  Action action = 3;
+
+  // Why, kept as the rollout's `reason`. At most 512 bytes.
+  string note = 4;
+}
+
+// What a person asks of the rollouts of the tenants they hold.
+message RolloutQuery {
+  // Empty asks within every tenant the caller holds, and is never a wildcard
+  // beyond them.
+  repeated string tenant_ids = 1;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 2;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged.
+  string cursor = 3;
+}
+
+// Ordered by tenant, then by when the rollout was taken, newest first. An
+// empty `next_cursor` means there is nothing further.
+message RolloutPage {
+  repeated RolloutRecord rollouts = 1;
+  string next_cursor = 2;
 }
