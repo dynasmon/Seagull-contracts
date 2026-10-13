@@ -9,6 +9,7 @@ package updatev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -69,6 +70,132 @@ func (x Format) Number() protoreflect.EnumNumber {
 // Deprecated: Use Format.Descriptor instead.
 func (Format) EnumDescriptor() ([]byte, []int) {
 	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{0}
+}
+
+// A closed set, because operators and their tools act on it.
+type RolloutRecord_State int32
+
+const (
+	RolloutRecord_STATE_UNSPECIFIED RolloutRecord_State = 0
+	// Opening its waves as their gates allow, and asking the agents they
+	// reach to run the release.
+	RolloutRecord_STATE_ACTIVE RolloutRecord_State = 1
+	// Asking nothing of any agent until an operator resumes it.
+	RolloutRecord_STATE_PAUSED RolloutRecord_State = 2
+	// Stopped for good by an operator, asking nothing of any agent.
+	RolloutRecord_STATE_ABORTED RolloutRecord_State = 3
+	// Taken over by a newer rollout of the tenant, for good.
+	RolloutRecord_STATE_SUPERSEDED RolloutRecord_State = 4
+)
+
+// Enum value maps for RolloutRecord_State.
+var (
+	RolloutRecord_State_name = map[int32]string{
+		0: "STATE_UNSPECIFIED",
+		1: "STATE_ACTIVE",
+		2: "STATE_PAUSED",
+		3: "STATE_ABORTED",
+		4: "STATE_SUPERSEDED",
+	}
+	RolloutRecord_State_value = map[string]int32{
+		"STATE_UNSPECIFIED": 0,
+		"STATE_ACTIVE":      1,
+		"STATE_PAUSED":      2,
+		"STATE_ABORTED":     3,
+		"STATE_SUPERSEDED":  4,
+	}
+)
+
+func (x RolloutRecord_State) Enum() *RolloutRecord_State {
+	p := new(RolloutRecord_State)
+	*p = x
+	return p
+}
+
+func (x RolloutRecord_State) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RolloutRecord_State) Descriptor() protoreflect.EnumDescriptor {
+	return file_seagull_update_v1_update_proto_enumTypes[1].Descriptor()
+}
+
+func (RolloutRecord_State) Type() protoreflect.EnumType {
+	return &file_seagull_update_v1_update_proto_enumTypes[1]
+}
+
+func (x RolloutRecord_State) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RolloutRecord_State.Descriptor instead.
+func (RolloutRecord_State) EnumDescriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{21, 0}
+}
+
+type RolloutChange_Action int32
+
+const (
+	RolloutChange_ACTION_UNSPECIFIED RolloutChange_Action = 0
+	// Ask nothing more of any agent, so the agents that had not moved keep the
+	// release they run. Only an active rollout pauses.
+	RolloutChange_ACTION_PAUSE RolloutChange_Action = 1
+	// Go on from where it paused. The agents the platform last read as failing
+	// no longer count toward the rollout's `failures`; a failure it reads
+	// afterwards does, and a failure it read before the rollout started counts
+	// like any other.
+	RolloutChange_ACTION_RESUME RolloutChange_Action = 2
+	// Open the next wave now, whatever its gate says. Only an active rollout
+	// with a wave left to open advances.
+	RolloutChange_ACTION_ADVANCE RolloutChange_Action = 3
+	// Stop for good, asking nothing more of any agent. Taking agents back from
+	// the release is a rollout of its own, to a release that replaces it.
+	RolloutChange_ACTION_ABORT RolloutChange_Action = 4
+)
+
+// Enum value maps for RolloutChange_Action.
+var (
+	RolloutChange_Action_name = map[int32]string{
+		0: "ACTION_UNSPECIFIED",
+		1: "ACTION_PAUSE",
+		2: "ACTION_RESUME",
+		3: "ACTION_ADVANCE",
+		4: "ACTION_ABORT",
+	}
+	RolloutChange_Action_value = map[string]int32{
+		"ACTION_UNSPECIFIED": 0,
+		"ACTION_PAUSE":       1,
+		"ACTION_RESUME":      2,
+		"ACTION_ADVANCE":     3,
+		"ACTION_ABORT":       4,
+	}
+)
+
+func (x RolloutChange_Action) Enum() *RolloutChange_Action {
+	p := new(RolloutChange_Action)
+	*p = x
+	return p
+}
+
+func (x RolloutChange_Action) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RolloutChange_Action) Descriptor() protoreflect.EnumDescriptor {
+	return file_seagull_update_v1_update_proto_enumTypes[2].Descriptor()
+}
+
+func (RolloutChange_Action) Type() protoreflect.EnumType {
+	return &file_seagull_update_v1_update_proto_enumTypes[2]
+}
+
+func (x RolloutChange_Action) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RolloutChange_Action.Descriptor instead.
+func (RolloutChange_Action) EnumDescriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{23, 0}
 }
 
 // The keys trusted to say which releases agents may install, and how many of
@@ -1341,7 +1468,9 @@ func (x *PublishedPackage) GetPublishedAt() *timestamppb.Timestamp {
 
 // Which release the platform wants agents of a tenant to run. The platform's to
 // decide, by whoever may change those agents there, and never signed: an agent
-// still installs only what the newest catalog it verified allows it.
+// still installs only what the newest catalog it verified allows it. An agent
+// assigned a release one by one runs that release whatever a rollout of its
+// tenant says, until the assignment is withdrawn.
 type Assignment struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -1501,11 +1630,661 @@ func (x *Assigned) GetNote() string {
 	return ""
 }
 
+// Moving the agents of a tenant to one release a wave at a time. Like an
+// assignment, it is the platform's to decide and never signed: a rollout
+// changes which agents are asked to run a release, and when, and nothing an
+// agent verifies, so an agent still installs only what the newest catalog it
+// verified allows it.
+//
+// Each wave opens the release to more of the rollout's agents. The platform
+// opens the next one on its own once the wave ran for its `soak` and enough of
+// the agents opened so far run the release; a wave with no soak waits for an
+// operator to advance the rollout. Once `failures` agents failed the release —
+// it did not verify, did not install or did not run as it should, as their
+// status reports say — the platform pauses the rollout, and a paused rollout
+// asks nothing of any agent, so the agents that had not moved keep the release
+// they run. An agent that could not reach the platform, or that refused the
+// release, has not failed it.
+//
+// A tenant has at most one rollout in force, and a new one takes over from it.
+type Rollout struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The tenant whose agents it moves.
+	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	// The release it moves them to: a version the newest catalog names. An
+	// older release than the one an agent runs moves it back only where that
+	// release replaces the one it runs, which is how a rollout takes agents
+	// back from a release that went wrong.
+	Version string `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	// The agents it may move: every agent registered in the tenant when empty,
+	// otherwise between 1 and 10,000 distinct agents registered in it.
+	AgentIds []string `protobuf:"bytes,3,rep,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	// Between 1 and 16, in the order they open. The first opens as the platform
+	// takes the rollout, and the last opens the release to all of its agents.
+	Waves []*Wave `protobuf:"bytes,4,rep,name=waves,proto3" json:"waves,omitempty"`
+	// How many agents failing the release pause the rollout: between 1 and
+	// 10,000, so 1 pauses it at the first failure.
+	Failures uint32 `protobuf:"varint,5,opt,name=failures,proto3" json:"failures,omitempty"`
+	// Why, kept with what the platform recorded. At most 512 bytes.
+	Note          string `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Rollout) Reset() {
+	*x = Rollout{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Rollout) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Rollout) ProtoMessage() {}
+
+func (x *Rollout) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Rollout.ProtoReflect.Descriptor instead.
+func (*Rollout) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Rollout) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *Rollout) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *Rollout) GetAgentIds() []string {
+	if x != nil {
+		return x.AgentIds
+	}
+	return nil
+}
+
+func (x *Rollout) GetWaves() []*Wave {
+	if x != nil {
+		return x.Waves
+	}
+	return nil
+}
+
+func (x *Rollout) GetFailures() uint32 {
+	if x != nil {
+		return x.Failures
+	}
+	return 0
+}
+
+func (x *Rollout) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// How far a rollout reaches once a wave opens, and what lets the next one
+// open.
+type Wave struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Agents named one by one, which is how a canary is chosen: between 1 and
+	// 100 distinct agents of the rollout. Empty for a wave that opens a share.
+	AgentIds []string `protobuf:"bytes,1,rep,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
+	// The share of the rollout's agents the release reaches once this wave
+	// opens, in percent: between 1 and 100, and more than any earlier wave's.
+	// Zero for a wave that names agents.
+	//
+	// An agent's place in a rollout is decided by the rollout and the agent
+	// alone: the first eight bytes of the SHA-256 of `rollout_id`, one zero byte
+	// and `agent_id`, read as a big-endian integer, modulo 10,000. A wave reaches
+	// every agent whose place is below `percent` times 100. So reconnecting,
+	// renewing a certificate or rotating a key never moves an agent from one
+	// wave to another, an agent registered while a rollout runs takes its place
+	// like any other, and each rollout reaches the agents of a tenant in an
+	// order of its own.
+	Percent uint32 `protobuf:"varint,2,opt,name=percent,proto3" json:"percent,omitempty"`
+	// How long the wave runs before the next one may open: between one minute
+	// and 30 days. Absent, the next wave waits for an operator to advance the
+	// rollout. The last wave has none, since nothing opens after it.
+	Soak *durationpb.Duration `protobuf:"bytes,3,opt,name=soak,proto3" json:"soak,omitempty"`
+	// How many of the agents the waves opened so far must run the release
+	// before the next wave opens on its own: between 1 and 10,000 when `soak` is
+	// set, and zero otherwise.
+	Running       uint32 `protobuf:"varint,4,opt,name=running,proto3" json:"running,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Wave) Reset() {
+	*x = Wave{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Wave) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Wave) ProtoMessage() {}
+
+func (x *Wave) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Wave.ProtoReflect.Descriptor instead.
+func (*Wave) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Wave) GetAgentIds() []string {
+	if x != nil {
+		return x.AgentIds
+	}
+	return nil
+}
+
+func (x *Wave) GetPercent() uint32 {
+	if x != nil {
+		return x.Percent
+	}
+	return 0
+}
+
+func (x *Wave) GetSoak() *durationpb.Duration {
+	if x != nil {
+		return x.Soak
+	}
+	return nil
+}
+
+func (x *Wave) GetRunning() uint32 {
+	if x != nil {
+		return x.Running
+	}
+	return 0
+}
+
+// What the platform recorded of a rollout, and how far it went.
+type RolloutRecord struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Chosen by the platform when it took the rollout: a UUID, in its canonical
+	// lowercase form.
+	RolloutId string `protobuf:"bytes,1,opt,name=rollout_id,json=rolloutId,proto3" json:"rollout_id,omitempty"`
+	// The rollout as it was taken. A page of rollouts leaves out its
+	// `agent_ids`.
+	Rollout *Rollout            `protobuf:"bytes,2,opt,name=rollout,proto3" json:"rollout,omitempty"`
+	State   RolloutRecord_State `protobuf:"varint,3,opt,name=state,proto3,enum=seagull.update.v1.RolloutRecord_State" json:"state,omitempty"`
+	// The newest wave opened, counted from 0, and when it opened.
+	Wave         uint32                 `protobuf:"varint,4,opt,name=wave,proto3" json:"wave,omitempty"`
+	WaveOpenedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=wave_opened_at,json=waveOpenedAt,proto3" json:"wave_opened_at,omitempty"`
+	CreatedBy    string                 `protobuf:"bytes,6,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// The last change of its state or of its wave: who made it — the platform
+	// itself when a gate opened a wave or paused the rollout — when, and why.
+	ChangedBy     string                 `protobuf:"bytes,8,opt,name=changed_by,json=changedBy,proto3" json:"changed_by,omitempty"`
+	ChangedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=changed_at,json=changedAt,proto3" json:"changed_at,omitempty"`
+	Reason        string                 `protobuf:"bytes,10,opt,name=reason,proto3" json:"reason,omitempty"`
+	Progress      *RolloutProgress       `protobuf:"bytes,11,opt,name=progress,proto3" json:"progress,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RolloutRecord) Reset() {
+	*x = RolloutRecord{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolloutRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolloutRecord) ProtoMessage() {}
+
+func (x *RolloutRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolloutRecord.ProtoReflect.Descriptor instead.
+func (*RolloutRecord) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *RolloutRecord) GetRolloutId() string {
+	if x != nil {
+		return x.RolloutId
+	}
+	return ""
+}
+
+func (x *RolloutRecord) GetRollout() *Rollout {
+	if x != nil {
+		return x.Rollout
+	}
+	return nil
+}
+
+func (x *RolloutRecord) GetState() RolloutRecord_State {
+	if x != nil {
+		return x.State
+	}
+	return RolloutRecord_STATE_UNSPECIFIED
+}
+
+func (x *RolloutRecord) GetWave() uint32 {
+	if x != nil {
+		return x.Wave
+	}
+	return 0
+}
+
+func (x *RolloutRecord) GetWaveOpenedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WaveOpenedAt
+	}
+	return nil
+}
+
+func (x *RolloutRecord) GetCreatedBy() string {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return ""
+}
+
+func (x *RolloutRecord) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *RolloutRecord) GetChangedBy() string {
+	if x != nil {
+		return x.ChangedBy
+	}
+	return ""
+}
+
+func (x *RolloutRecord) GetChangedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ChangedAt
+	}
+	return nil
+}
+
+func (x *RolloutRecord) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RolloutRecord) GetProgress() *RolloutProgress {
+	if x != nil {
+		return x.Progress
+	}
+	return nil
+}
+
+// What the agents a rollout reached said of its release, as the platform last
+// read their status. Each agent counts once, by its newest report.
+type RolloutProgress struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the platform last read it. Absent until it first did.
+	EvaluatedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	// The agents the rollout may move, and those its open waves reach.
+	Agents  uint32 `protobuf:"varint,2,opt,name=agents,proto3" json:"agents,omitempty"`
+	Reached uint32 `protobuf:"varint,3,opt,name=reached,proto3" json:"reached,omitempty"`
+	// Of those reached: the agents that run the release, by the version they
+	// report of themselves.
+	Running uint32 `protobuf:"varint,4,opt,name=running,proto3" json:"running,omitempty"`
+	// Those that failed it and count toward the rollout's `failures`, and those
+	// whose failure an operator resumed the rollout past, which do not.
+	Failed       uint32 `protobuf:"varint,5,opt,name=failed,proto3" json:"failed,omitempty"`
+	Acknowledged uint32 `protobuf:"varint,6,opt,name=acknowledged,proto3" json:"acknowledged,omitempty"`
+	// Those that cannot take it, as their reports say — updates are off, they
+	// run on another platform or keep newer state, or run a release it is not
+	// installed over — or that refused it.
+	Ineligible uint32 `protobuf:"varint,7,opt,name=ineligible,proto3" json:"ineligible,omitempty"`
+	// Those assigned a release one by one, which the rollout leaves to that
+	// assignment.
+	Pinned uint32 `protobuf:"varint,8,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	// The rest: on their way to the release, unable to reach the platform, or
+	// not reporting.
+	Pending       uint32 `protobuf:"varint,9,opt,name=pending,proto3" json:"pending,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RolloutProgress) Reset() {
+	*x = RolloutProgress{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolloutProgress) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolloutProgress) ProtoMessage() {}
+
+func (x *RolloutProgress) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolloutProgress.ProtoReflect.Descriptor instead.
+func (*RolloutProgress) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *RolloutProgress) GetEvaluatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EvaluatedAt
+	}
+	return nil
+}
+
+func (x *RolloutProgress) GetAgents() uint32 {
+	if x != nil {
+		return x.Agents
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetReached() uint32 {
+	if x != nil {
+		return x.Reached
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetRunning() uint32 {
+	if x != nil {
+		return x.Running
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetFailed() uint32 {
+	if x != nil {
+		return x.Failed
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetAcknowledged() uint32 {
+	if x != nil {
+		return x.Acknowledged
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetIneligible() uint32 {
+	if x != nil {
+		return x.Ineligible
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetPinned() uint32 {
+	if x != nil {
+		return x.Pinned
+	}
+	return 0
+}
+
+func (x *RolloutProgress) GetPending() uint32 {
+	if x != nil {
+		return x.Pending
+	}
+	return 0
+}
+
+// Changing the course of a rollout, which whoever may change the agents of its
+// tenant does. A change that does not apply to the rollout as it stands is
+// refused.
+type RolloutChange struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	TenantId  string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RolloutId string                 `protobuf:"bytes,2,opt,name=rollout_id,json=rolloutId,proto3" json:"rollout_id,omitempty"`
+	Action    RolloutChange_Action   `protobuf:"varint,3,opt,name=action,proto3,enum=seagull.update.v1.RolloutChange_Action" json:"action,omitempty"`
+	// Why, kept as the rollout's `reason`. At most 512 bytes.
+	Note          string `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RolloutChange) Reset() {
+	*x = RolloutChange{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolloutChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolloutChange) ProtoMessage() {}
+
+func (x *RolloutChange) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolloutChange.ProtoReflect.Descriptor instead.
+func (*RolloutChange) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *RolloutChange) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *RolloutChange) GetRolloutId() string {
+	if x != nil {
+		return x.RolloutId
+	}
+	return ""
+}
+
+func (x *RolloutChange) GetAction() RolloutChange_Action {
+	if x != nil {
+		return x.Action
+	}
+	return RolloutChange_ACTION_UNSPECIFIED
+}
+
+func (x *RolloutChange) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// What a person asks of the rollouts of the tenants they hold.
+type RolloutQuery struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty asks within every tenant the caller holds, and is never a wildcard
+	// beyond them.
+	TenantIds []string `protobuf:"bytes,1,rep,name=tenant_ids,json=tenantIds,proto3" json:"tenant_ids,omitempty"`
+	// Zero asks for the server's default. The server caps it either way.
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Empty asks for the first page. Otherwise the `next_cursor` of the page
+	// before it, unchanged.
+	Cursor        string `protobuf:"bytes,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RolloutQuery) Reset() {
+	*x = RolloutQuery{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolloutQuery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolloutQuery) ProtoMessage() {}
+
+func (x *RolloutQuery) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolloutQuery.ProtoReflect.Descriptor instead.
+func (*RolloutQuery) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *RolloutQuery) GetTenantIds() []string {
+	if x != nil {
+		return x.TenantIds
+	}
+	return nil
+}
+
+func (x *RolloutQuery) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *RolloutQuery) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+// Ordered by tenant, then by when the rollout was taken, newest first. An
+// empty `next_cursor` means there is nothing further.
+type RolloutPage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rollouts      []*RolloutRecord       `protobuf:"bytes,1,rep,name=rollouts,proto3" json:"rollouts,omitempty"`
+	NextCursor    string                 `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RolloutPage) Reset() {
+	*x = RolloutPage{}
+	mi := &file_seagull_update_v1_update_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolloutPage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolloutPage) ProtoMessage() {}
+
+func (x *RolloutPage) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_update_v1_update_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolloutPage.ProtoReflect.Descriptor instead.
+func (*RolloutPage) Descriptor() ([]byte, []int) {
+	return file_seagull_update_v1_update_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RolloutPage) GetRollouts() []*RolloutRecord {
+	if x != nil {
+		return x.Rollouts
+	}
+	return nil
+}
+
+func (x *RolloutPage) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
 var File_seagull_update_v1_update_proto protoreflect.FileDescriptor
 
 const file_seagull_update_v1_update_proto_rawDesc = "" +
 	"\n" +
-	"\x1eseagull/update/v1/update.proto\x12\x11seagull.update.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x02\n" +
+	"\x1eseagull/update/v1/update.proto\x12\x11seagull.update.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x02\n" +
 	"\x04Root\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x04R\aversion\x127\n" +
@@ -1610,7 +2389,76 @@ const file_seagull_update_v1_update_proto_rawDesc = "" +
 	"assignedBy\x12;\n" +
 	"\vassigned_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"assignedAt\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note*0\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\xbc\x01\n" +
+	"\aRollout\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1b\n" +
+	"\tagent_ids\x18\x03 \x03(\tR\bagentIds\x12-\n" +
+	"\x05waves\x18\x04 \x03(\v2\x17.seagull.update.v1.WaveR\x05waves\x12\x1a\n" +
+	"\bfailures\x18\x05 \x01(\rR\bfailures\x12\x12\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\x86\x01\n" +
+	"\x04Wave\x12\x1b\n" +
+	"\tagent_ids\x18\x01 \x03(\tR\bagentIds\x12\x18\n" +
+	"\apercent\x18\x02 \x01(\rR\apercent\x12-\n" +
+	"\x04soak\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04soak\x12\x18\n" +
+	"\arunning\x18\x04 \x01(\rR\arunning\"\xf1\x04\n" +
+	"\rRolloutRecord\x12\x1d\n" +
+	"\n" +
+	"rollout_id\x18\x01 \x01(\tR\trolloutId\x124\n" +
+	"\arollout\x18\x02 \x01(\v2\x1a.seagull.update.v1.RolloutR\arollout\x12<\n" +
+	"\x05state\x18\x03 \x01(\x0e2&.seagull.update.v1.RolloutRecord.StateR\x05state\x12\x12\n" +
+	"\x04wave\x18\x04 \x01(\rR\x04wave\x12@\n" +
+	"\x0ewave_opened_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\fwaveOpenedAt\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\x06 \x01(\tR\tcreatedBy\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"changed_by\x18\b \x01(\tR\tchangedBy\x129\n" +
+	"\n" +
+	"changed_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt\x12\x16\n" +
+	"\x06reason\x18\n" +
+	" \x01(\tR\x06reason\x12>\n" +
+	"\bprogress\x18\v \x01(\v2\".seagull.update.v1.RolloutProgressR\bprogress\"k\n" +
+	"\x05State\x12\x15\n" +
+	"\x11STATE_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fSTATE_ACTIVE\x10\x01\x12\x10\n" +
+	"\fSTATE_PAUSED\x10\x02\x12\x11\n" +
+	"\rSTATE_ABORTED\x10\x03\x12\x14\n" +
+	"\x10STATE_SUPERSEDED\x10\x04\"\xaa\x02\n" +
+	"\x0fRolloutProgress\x12=\n" +
+	"\fevaluated_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x12\x16\n" +
+	"\x06agents\x18\x02 \x01(\rR\x06agents\x12\x18\n" +
+	"\areached\x18\x03 \x01(\rR\areached\x12\x18\n" +
+	"\arunning\x18\x04 \x01(\rR\arunning\x12\x16\n" +
+	"\x06failed\x18\x05 \x01(\rR\x06failed\x12\"\n" +
+	"\facknowledged\x18\x06 \x01(\rR\facknowledged\x12\x1e\n" +
+	"\n" +
+	"ineligible\x18\a \x01(\rR\n" +
+	"ineligible\x12\x16\n" +
+	"\x06pinned\x18\b \x01(\rR\x06pinned\x12\x18\n" +
+	"\apending\x18\t \x01(\rR\apending\"\x8d\x02\n" +
+	"\rRolloutChange\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"rollout_id\x18\x02 \x01(\tR\trolloutId\x12?\n" +
+	"\x06action\x18\x03 \x01(\x0e2'.seagull.update.v1.RolloutChange.ActionR\x06action\x12\x12\n" +
+	"\x04note\x18\x04 \x01(\tR\x04note\"k\n" +
+	"\x06Action\x12\x16\n" +
+	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fACTION_PAUSE\x10\x01\x12\x11\n" +
+	"\rACTION_RESUME\x10\x02\x12\x12\n" +
+	"\x0eACTION_ADVANCE\x10\x03\x12\x10\n" +
+	"\fACTION_ABORT\x10\x04\"[\n" +
+	"\fRolloutQuery\x12\x1d\n" +
+	"\n" +
+	"tenant_ids\x18\x01 \x03(\tR\ttenantIds\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x03 \x01(\tR\x06cursor\"l\n" +
+	"\vRolloutPage\x12<\n" +
+	"\brollouts\x18\x01 \x03(\v2 .seagull.update.v1.RolloutRecordR\brollouts\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor*0\n" +
 	"\x06Format\x12\x16\n" +
 	"\x12FORMAT_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -1629,63 +2477,84 @@ func file_seagull_update_v1_update_proto_rawDescGZIP() []byte {
 	return file_seagull_update_v1_update_proto_rawDescData
 }
 
-var file_seagull_update_v1_update_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_seagull_update_v1_update_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_seagull_update_v1_update_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_seagull_update_v1_update_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_seagull_update_v1_update_proto_goTypes = []any{
 	(Format)(0),                   // 0: seagull.update.v1.Format
-	(*Root)(nil),                  // 1: seagull.update.v1.Root
-	(*Key)(nil),                   // 2: seagull.update.v1.Key
-	(*Role)(nil),                  // 3: seagull.update.v1.Role
-	(*Catalog)(nil),               // 4: seagull.update.v1.Catalog
-	(*Release)(nil),               // 5: seagull.update.v1.Release
-	(*Platform)(nil),              // 6: seagull.update.v1.Platform
-	(*Payload)(nil),               // 7: seagull.update.v1.Payload
-	(*Source)(nil),                // 8: seagull.update.v1.Source
-	(*Compatibility)(nil),         // 9: seagull.update.v1.Compatibility
-	(*Envelope)(nil),              // 10: seagull.update.v1.Envelope
-	(*Signature)(nil),             // 11: seagull.update.v1.Signature
-	(*Offer)(nil),                 // 12: seagull.update.v1.Offer
-	(*RootPublication)(nil),       // 13: seagull.update.v1.RootPublication
-	(*CatalogPublication)(nil),    // 14: seagull.update.v1.CatalogPublication
-	(*PublishedRoot)(nil),         // 15: seagull.update.v1.PublishedRoot
-	(*PublishedCatalog)(nil),      // 16: seagull.update.v1.PublishedCatalog
-	(*PublishedPackage)(nil),      // 17: seagull.update.v1.PublishedPackage
-	(*Assignment)(nil),            // 18: seagull.update.v1.Assignment
-	(*Assigned)(nil),              // 19: seagull.update.v1.Assigned
-	(*timestamppb.Timestamp)(nil), // 20: google.protobuf.Timestamp
+	(RolloutRecord_State)(0),      // 1: seagull.update.v1.RolloutRecord.State
+	(RolloutChange_Action)(0),     // 2: seagull.update.v1.RolloutChange.Action
+	(*Root)(nil),                  // 3: seagull.update.v1.Root
+	(*Key)(nil),                   // 4: seagull.update.v1.Key
+	(*Role)(nil),                  // 5: seagull.update.v1.Role
+	(*Catalog)(nil),               // 6: seagull.update.v1.Catalog
+	(*Release)(nil),               // 7: seagull.update.v1.Release
+	(*Platform)(nil),              // 8: seagull.update.v1.Platform
+	(*Payload)(nil),               // 9: seagull.update.v1.Payload
+	(*Source)(nil),                // 10: seagull.update.v1.Source
+	(*Compatibility)(nil),         // 11: seagull.update.v1.Compatibility
+	(*Envelope)(nil),              // 12: seagull.update.v1.Envelope
+	(*Signature)(nil),             // 13: seagull.update.v1.Signature
+	(*Offer)(nil),                 // 14: seagull.update.v1.Offer
+	(*RootPublication)(nil),       // 15: seagull.update.v1.RootPublication
+	(*CatalogPublication)(nil),    // 16: seagull.update.v1.CatalogPublication
+	(*PublishedRoot)(nil),         // 17: seagull.update.v1.PublishedRoot
+	(*PublishedCatalog)(nil),      // 18: seagull.update.v1.PublishedCatalog
+	(*PublishedPackage)(nil),      // 19: seagull.update.v1.PublishedPackage
+	(*Assignment)(nil),            // 20: seagull.update.v1.Assignment
+	(*Assigned)(nil),              // 21: seagull.update.v1.Assigned
+	(*Rollout)(nil),               // 22: seagull.update.v1.Rollout
+	(*Wave)(nil),                  // 23: seagull.update.v1.Wave
+	(*RolloutRecord)(nil),         // 24: seagull.update.v1.RolloutRecord
+	(*RolloutProgress)(nil),       // 25: seagull.update.v1.RolloutProgress
+	(*RolloutChange)(nil),         // 26: seagull.update.v1.RolloutChange
+	(*RolloutQuery)(nil),          // 27: seagull.update.v1.RolloutQuery
+	(*RolloutPage)(nil),           // 28: seagull.update.v1.RolloutPage
+	(*timestamppb.Timestamp)(nil), // 29: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 30: google.protobuf.Duration
 }
 var file_seagull_update_v1_update_proto_depIdxs = []int32{
-	20, // 0: seagull.update.v1.Root.issued_at:type_name -> google.protobuf.Timestamp
-	20, // 1: seagull.update.v1.Root.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 2: seagull.update.v1.Root.keys:type_name -> seagull.update.v1.Key
-	3,  // 3: seagull.update.v1.Root.root:type_name -> seagull.update.v1.Role
-	3,  // 4: seagull.update.v1.Root.catalog:type_name -> seagull.update.v1.Role
-	20, // 5: seagull.update.v1.Catalog.issued_at:type_name -> google.protobuf.Timestamp
-	20, // 6: seagull.update.v1.Catalog.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 7: seagull.update.v1.Catalog.releases:type_name -> seagull.update.v1.Release
-	6,  // 8: seagull.update.v1.Release.platform:type_name -> seagull.update.v1.Platform
-	7,  // 9: seagull.update.v1.Release.payload:type_name -> seagull.update.v1.Payload
-	8,  // 10: seagull.update.v1.Release.source:type_name -> seagull.update.v1.Source
-	9,  // 11: seagull.update.v1.Release.compatibility:type_name -> seagull.update.v1.Compatibility
+	29, // 0: seagull.update.v1.Root.issued_at:type_name -> google.protobuf.Timestamp
+	29, // 1: seagull.update.v1.Root.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 2: seagull.update.v1.Root.keys:type_name -> seagull.update.v1.Key
+	5,  // 3: seagull.update.v1.Root.root:type_name -> seagull.update.v1.Role
+	5,  // 4: seagull.update.v1.Root.catalog:type_name -> seagull.update.v1.Role
+	29, // 5: seagull.update.v1.Catalog.issued_at:type_name -> google.protobuf.Timestamp
+	29, // 6: seagull.update.v1.Catalog.expires_at:type_name -> google.protobuf.Timestamp
+	7,  // 7: seagull.update.v1.Catalog.releases:type_name -> seagull.update.v1.Release
+	8,  // 8: seagull.update.v1.Release.platform:type_name -> seagull.update.v1.Platform
+	9,  // 9: seagull.update.v1.Release.payload:type_name -> seagull.update.v1.Payload
+	10, // 10: seagull.update.v1.Release.source:type_name -> seagull.update.v1.Source
+	11, // 11: seagull.update.v1.Release.compatibility:type_name -> seagull.update.v1.Compatibility
 	0,  // 12: seagull.update.v1.Platform.format:type_name -> seagull.update.v1.Format
-	11, // 13: seagull.update.v1.Envelope.signatures:type_name -> seagull.update.v1.Signature
-	10, // 14: seagull.update.v1.Offer.roots:type_name -> seagull.update.v1.Envelope
-	10, // 15: seagull.update.v1.Offer.catalog:type_name -> seagull.update.v1.Envelope
-	10, // 16: seagull.update.v1.RootPublication.root:type_name -> seagull.update.v1.Envelope
-	10, // 17: seagull.update.v1.CatalogPublication.catalog:type_name -> seagull.update.v1.Envelope
-	20, // 18: seagull.update.v1.PublishedRoot.issued_at:type_name -> google.protobuf.Timestamp
-	20, // 19: seagull.update.v1.PublishedRoot.expires_at:type_name -> google.protobuf.Timestamp
-	20, // 20: seagull.update.v1.PublishedRoot.published_at:type_name -> google.protobuf.Timestamp
-	20, // 21: seagull.update.v1.PublishedCatalog.issued_at:type_name -> google.protobuf.Timestamp
-	20, // 22: seagull.update.v1.PublishedCatalog.expires_at:type_name -> google.protobuf.Timestamp
-	20, // 23: seagull.update.v1.PublishedCatalog.published_at:type_name -> google.protobuf.Timestamp
-	20, // 24: seagull.update.v1.PublishedPackage.published_at:type_name -> google.protobuf.Timestamp
-	20, // 25: seagull.update.v1.Assigned.assigned_at:type_name -> google.protobuf.Timestamp
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	13, // 13: seagull.update.v1.Envelope.signatures:type_name -> seagull.update.v1.Signature
+	12, // 14: seagull.update.v1.Offer.roots:type_name -> seagull.update.v1.Envelope
+	12, // 15: seagull.update.v1.Offer.catalog:type_name -> seagull.update.v1.Envelope
+	12, // 16: seagull.update.v1.RootPublication.root:type_name -> seagull.update.v1.Envelope
+	12, // 17: seagull.update.v1.CatalogPublication.catalog:type_name -> seagull.update.v1.Envelope
+	29, // 18: seagull.update.v1.PublishedRoot.issued_at:type_name -> google.protobuf.Timestamp
+	29, // 19: seagull.update.v1.PublishedRoot.expires_at:type_name -> google.protobuf.Timestamp
+	29, // 20: seagull.update.v1.PublishedRoot.published_at:type_name -> google.protobuf.Timestamp
+	29, // 21: seagull.update.v1.PublishedCatalog.issued_at:type_name -> google.protobuf.Timestamp
+	29, // 22: seagull.update.v1.PublishedCatalog.expires_at:type_name -> google.protobuf.Timestamp
+	29, // 23: seagull.update.v1.PublishedCatalog.published_at:type_name -> google.protobuf.Timestamp
+	29, // 24: seagull.update.v1.PublishedPackage.published_at:type_name -> google.protobuf.Timestamp
+	29, // 25: seagull.update.v1.Assigned.assigned_at:type_name -> google.protobuf.Timestamp
+	23, // 26: seagull.update.v1.Rollout.waves:type_name -> seagull.update.v1.Wave
+	30, // 27: seagull.update.v1.Wave.soak:type_name -> google.protobuf.Duration
+	22, // 28: seagull.update.v1.RolloutRecord.rollout:type_name -> seagull.update.v1.Rollout
+	1,  // 29: seagull.update.v1.RolloutRecord.state:type_name -> seagull.update.v1.RolloutRecord.State
+	29, // 30: seagull.update.v1.RolloutRecord.wave_opened_at:type_name -> google.protobuf.Timestamp
+	29, // 31: seagull.update.v1.RolloutRecord.created_at:type_name -> google.protobuf.Timestamp
+	29, // 32: seagull.update.v1.RolloutRecord.changed_at:type_name -> google.protobuf.Timestamp
+	25, // 33: seagull.update.v1.RolloutRecord.progress:type_name -> seagull.update.v1.RolloutProgress
+	29, // 34: seagull.update.v1.RolloutProgress.evaluated_at:type_name -> google.protobuf.Timestamp
+	2,  // 35: seagull.update.v1.RolloutChange.action:type_name -> seagull.update.v1.RolloutChange.Action
+	24, // 36: seagull.update.v1.RolloutPage.rollouts:type_name -> seagull.update.v1.RolloutRecord
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_seagull_update_v1_update_proto_init() }
@@ -1698,8 +2567,8 @@ func file_seagull_update_v1_update_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_update_v1_update_proto_rawDesc), len(file_seagull_update_v1_update_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   19,
+			NumEnums:      3,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

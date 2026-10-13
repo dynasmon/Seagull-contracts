@@ -8,6 +8,7 @@ package agentv1
 
 import (
 	v1 "github.com/dynasmon/Seagull-contracts/gen/go/seagull/event/v1"
+	v11 "github.com/dynasmon/Seagull-contracts/gen/go/seagull/update/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -418,7 +419,9 @@ type Status struct {
 	Privileges    *Status_Privileges    `protobuf:"bytes,16,opt,name=privileges,proto3" json:"privileges,omitempty"`
 	// Absent while no update was asked of the agent, or where it does not take
 	// updates.
-	Update        *Status_Update `protobuf:"bytes,17,opt,name=update,proto3" json:"update,omitempty"`
+	Update *Status_Update `protobuf:"bytes,17,opt,name=update,proto3" json:"update,omitempty"`
+	// Absent from an agent that predates it.
+	Compatibility *Status_Compatibility `protobuf:"bytes,18,opt,name=compatibility,proto3" json:"compatibility,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -568,6 +571,13 @@ func (x *Status) GetPrivileges() *Status_Privileges {
 func (x *Status) GetUpdate() *Status_Update {
 	if x != nil {
 		return x.Update
+	}
+	return nil
+}
+
+func (x *Status) GetCompatibility() *Status_Compatibility {
+	if x != nil {
+		return x.Compatibility
 	}
 	return nil
 }
@@ -1489,11 +1499,200 @@ func (x *Status_Update) GetReason() string {
 	return ""
 }
 
+// What the agent speaks and which releases it can take, as its binary and
+// its settings describe them: a claim, like `build`, from which a platform
+// tells which agents a change of its own or a rollout can reach before it
+// asks anything of them.
+type Status_Compatibility struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The contracts release the binary was built with, such as `v0.18.0`, at
+	// most 128 bytes.
+	Contracts string `protobuf:"bytes,1,opt,name=contracts,proto3" json:"contracts,omitempty"`
+	// The protocol version of every batch it sends, and the schema version of
+	// the events and the inventory records it writes. A report's own is its
+	// `schema_version`.
+	ProtocolVersion        uint32 `protobuf:"varint,2,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	EventSchemaVersion     uint32 `protobuf:"varint,3,opt,name=event_schema_version,json=eventSchemaVersion,proto3" json:"event_schema_version,omitempty"`
+	InventorySchemaVersion uint32 `protobuf:"varint,4,opt,name=inventory_schema_version,json=inventorySchemaVersion,proto3" json:"inventory_schema_version,omitempty"`
+	// The schema of the signed policies, and of the update metadata, it reads.
+	PolicySchemaVersion uint32          `protobuf:"varint,5,opt,name=policy_schema_version,json=policySchemaVersion,proto3" json:"policy_schema_version,omitempty"`
+	UpdateSchemaVersion uint32          `protobuf:"varint,6,opt,name=update_schema_version,json=updateSchemaVersion,proto3" json:"update_schema_version,omitempty"`
+	Updates             *Status_Updates `protobuf:"bytes,7,opt,name=updates,proto3" json:"updates,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *Status_Compatibility) Reset() {
+	*x = Status_Compatibility{}
+	mi := &file_seagull_agent_v1_status_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Status_Compatibility) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Status_Compatibility) ProtoMessage() {}
+
+func (x *Status_Compatibility) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_status_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Status_Compatibility.ProtoReflect.Descriptor instead.
+func (*Status_Compatibility) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_status_proto_rawDescGZIP(), []int{0, 10}
+}
+
+func (x *Status_Compatibility) GetContracts() string {
+	if x != nil {
+		return x.Contracts
+	}
+	return ""
+}
+
+func (x *Status_Compatibility) GetProtocolVersion() uint32 {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return 0
+}
+
+func (x *Status_Compatibility) GetEventSchemaVersion() uint32 {
+	if x != nil {
+		return x.EventSchemaVersion
+	}
+	return 0
+}
+
+func (x *Status_Compatibility) GetInventorySchemaVersion() uint32 {
+	if x != nil {
+		return x.InventorySchemaVersion
+	}
+	return 0
+}
+
+func (x *Status_Compatibility) GetPolicySchemaVersion() uint32 {
+	if x != nil {
+		return x.PolicySchemaVersion
+	}
+	return 0
+}
+
+func (x *Status_Compatibility) GetUpdateSchemaVersion() uint32 {
+	if x != nil {
+		return x.UpdateSchemaVersion
+	}
+	return 0
+}
+
+func (x *Status_Compatibility) GetUpdates() *Status_Updates {
+	if x != nil {
+		return x.Updates
+	}
+	return nil
+}
+
+// Whether the agent installs the releases the platform asks it to run, and
+// which of them it can.
+type Status_Updates struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether an operator enabled updates on its host and gave it a root to
+	// verify them under. An agent that does not install releases still says
+	// how it would.
+	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// How it installs a release, which is the format a release must be in for
+	// it to install it.
+	Format v11.Format `protobuf:"varint,2,opt,name=format,proto3,enum=seagull.update.v1.Format" json:"format,omitempty"`
+	// The generation of the local state it keeps: it installs no release that
+	// keeps an older one.
+	StateGeneration uint32 `protobuf:"varint,3,opt,name=state_generation,json=stateGeneration,proto3" json:"state_generation,omitempty"`
+	// The newest root it trusts and the newest catalog it verified, zero for
+	// none.
+	RootVersion    uint64 `protobuf:"varint,4,opt,name=root_version,json=rootVersion,proto3" json:"root_version,omitempty"`
+	CatalogVersion uint64 `protobuf:"varint,5,opt,name=catalog_version,json=catalogVersion,proto3" json:"catalog_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *Status_Updates) Reset() {
+	*x = Status_Updates{}
+	mi := &file_seagull_agent_v1_status_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Status_Updates) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Status_Updates) ProtoMessage() {}
+
+func (x *Status_Updates) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_agent_v1_status_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Status_Updates.ProtoReflect.Descriptor instead.
+func (*Status_Updates) Descriptor() ([]byte, []int) {
+	return file_seagull_agent_v1_status_proto_rawDescGZIP(), []int{0, 11}
+}
+
+func (x *Status_Updates) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *Status_Updates) GetFormat() v11.Format {
+	if x != nil {
+		return x.Format
+	}
+	return v11.Format(0)
+}
+
+func (x *Status_Updates) GetStateGeneration() uint32 {
+	if x != nil {
+		return x.StateGeneration
+	}
+	return 0
+}
+
+func (x *Status_Updates) GetRootVersion() uint64 {
+	if x != nil {
+		return x.RootVersion
+	}
+	return 0
+}
+
+func (x *Status_Updates) GetCatalogVersion() uint64 {
+	if x != nil {
+		return x.CatalogVersion
+	}
+	return 0
+}
+
 var File_seagull_agent_v1_status_proto protoreflect.FileDescriptor
 
 const file_seagull_agent_v1_status_proto_rawDesc = "" +
 	"\n" +
-	"\x1dseagull/agent/v1/status.proto\x12\x10seagull.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cseagull/event/v1/event.proto\"\x83\x1e\n" +
+	"\x1dseagull/agent/v1/status.proto\x12\x10seagull.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cseagull/event/v1/event.proto\x1a\x1eseagull/update/v1/update.proto\"\x8c#\n" +
 	"\x06Status\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12'\n" +
 	"\x0finstallation_id\x18\x02 \x01(\tR\x0einstallationId\x12\x1a\n" +
@@ -1519,7 +1718,8 @@ const file_seagull_agent_v1_status_proto_rawDesc = "" +
 	"\n" +
 	"privileges\x18\x10 \x01(\v2#.seagull.agent.v1.Status.PrivilegesR\n" +
 	"privileges\x127\n" +
-	"\x06update\x18\x11 \x01(\v2\x1f.seagull.agent.v1.Status.UpdateR\x06update\x1a\x92\x02\n" +
+	"\x06update\x18\x11 \x01(\v2\x1f.seagull.agent.v1.Status.UpdateR\x06update\x12L\n" +
+	"\rcompatibility\x18\x12 \x01(\v2&.seagull.agent.v1.Status.CompatibilityR\rcompatibility\x1a\x92\x02\n" +
 	"\x03Run\x12\x17\n" +
 	"\aboot_id\x18\x01 \x01(\tR\x06bootId\x129\n" +
 	"\n" +
@@ -1604,7 +1804,21 @@ const file_seagull_agent_v1_status_proto_rawDesc = "" +
 	"\x12FAILURE_UNVERIFIED\x10\x02\x12\x13\n" +
 	"\x0fFAILURE_REFUSED\x10\x03\x12\x18\n" +
 	"\x14FAILURE_INSTALLATION\x10\x04\x12\x15\n" +
-	"\x11FAILURE_UNHEALTHY\x10\x05\"\x9a\x01\n" +
+	"\x11FAILURE_UNHEALTHY\x10\x05\x1a\xe8\x02\n" +
+	"\rCompatibility\x12\x1c\n" +
+	"\tcontracts\x18\x01 \x01(\tR\tcontracts\x12)\n" +
+	"\x10protocol_version\x18\x02 \x01(\rR\x0fprotocolVersion\x120\n" +
+	"\x14event_schema_version\x18\x03 \x01(\rR\x12eventSchemaVersion\x128\n" +
+	"\x18inventory_schema_version\x18\x04 \x01(\rR\x16inventorySchemaVersion\x122\n" +
+	"\x15policy_schema_version\x18\x05 \x01(\rR\x13policySchemaVersion\x122\n" +
+	"\x15update_schema_version\x18\x06 \x01(\rR\x13updateSchemaVersion\x12:\n" +
+	"\aupdates\x18\a \x01(\v2 .seagull.agent.v1.Status.UpdatesR\aupdates\x1a\xcd\x01\n" +
+	"\aUpdates\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x121\n" +
+	"\x06format\x18\x02 \x01(\x0e2\x19.seagull.update.v1.FormatR\x06format\x12)\n" +
+	"\x10state_generation\x18\x03 \x01(\rR\x0fstateGeneration\x12!\n" +
+	"\froot_version\x18\x04 \x01(\x04R\vrootVersion\x12'\n" +
+	"\x0fcatalog_version\x18\x05 \x01(\x04R\x0ecatalogVersion\"\x9a\x01\n" +
 	"\tCondition\x12\x19\n" +
 	"\x15CONDITION_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CONDITION_RUNNING\x10\x01\x12\x16\n" +
@@ -1642,7 +1856,7 @@ func file_seagull_agent_v1_status_proto_rawDescGZIP() []byte {
 }
 
 var file_seagull_agent_v1_status_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_seagull_agent_v1_status_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_seagull_agent_v1_status_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_seagull_agent_v1_status_proto_goTypes = []any{
 	(Liveness)(0),                 // 0: seagull.agent.v1.Liveness
 	(Status_Condition)(0),         // 1: seagull.agent.v1.Status.Condition
@@ -1661,16 +1875,19 @@ var file_seagull_agent_v1_status_proto_goTypes = []any{
 	(*Status_Configuration)(nil),  // 14: seagull.agent.v1.Status.Configuration
 	(*Status_Privileges)(nil),     // 15: seagull.agent.v1.Status.Privileges
 	(*Status_Update)(nil),         // 16: seagull.agent.v1.Status.Update
-	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 18: google.protobuf.Duration
-	(*v1.Origin)(nil),             // 19: seagull.event.v1.Origin
-	(*v1.Reception)(nil),          // 20: seagull.event.v1.Reception
+	(*Status_Compatibility)(nil),  // 17: seagull.agent.v1.Status.Compatibility
+	(*Status_Updates)(nil),        // 18: seagull.agent.v1.Status.Updates
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 20: google.protobuf.Duration
+	(*v1.Origin)(nil),             // 21: seagull.event.v1.Origin
+	(*v1.Reception)(nil),          // 22: seagull.event.v1.Reception
+	(v11.Format)(0),               // 23: seagull.update.v1.Format
 }
 var file_seagull_agent_v1_status_proto_depIdxs = []int32{
-	17, // 0: seagull.agent.v1.Status.reported_at:type_name -> google.protobuf.Timestamp
-	18, // 1: seagull.agent.v1.Status.interval:type_name -> google.protobuf.Duration
-	19, // 2: seagull.agent.v1.Status.origin:type_name -> seagull.event.v1.Origin
-	20, // 3: seagull.agent.v1.Status.reception:type_name -> seagull.event.v1.Reception
+	19, // 0: seagull.agent.v1.Status.reported_at:type_name -> google.protobuf.Timestamp
+	20, // 1: seagull.agent.v1.Status.interval:type_name -> google.protobuf.Duration
+	21, // 2: seagull.agent.v1.Status.origin:type_name -> seagull.event.v1.Origin
+	22, // 3: seagull.agent.v1.Status.reception:type_name -> seagull.event.v1.Reception
 	7,  // 4: seagull.agent.v1.Status.run:type_name -> seagull.agent.v1.Status.Run
 	8,  // 5: seagull.agent.v1.Status.build:type_name -> seagull.agent.v1.Status.Build
 	1,  // 6: seagull.agent.v1.Status.condition:type_name -> seagull.agent.v1.Status.Condition
@@ -1681,31 +1898,34 @@ var file_seagull_agent_v1_status_proto_depIdxs = []int32{
 	14, // 11: seagull.agent.v1.Status.configuration:type_name -> seagull.agent.v1.Status.Configuration
 	15, // 12: seagull.agent.v1.Status.privileges:type_name -> seagull.agent.v1.Status.Privileges
 	16, // 13: seagull.agent.v1.Status.update:type_name -> seagull.agent.v1.Status.Update
-	5,  // 14: seagull.agent.v1.StatusBatch.reports:type_name -> seagull.agent.v1.Status
-	17, // 15: seagull.agent.v1.Status.Run.started_at:type_name -> google.protobuf.Timestamp
-	2,  // 16: seagull.agent.v1.Status.Run.previous_ending:type_name -> seagull.agent.v1.Status.Ending
-	17, // 17: seagull.agent.v1.Status.Run.previous_seen_at:type_name -> google.protobuf.Timestamp
-	1,  // 18: seagull.agent.v1.Status.Component.condition:type_name -> seagull.agent.v1.Status.Condition
-	17, // 19: seagull.agent.v1.Status.Component.since:type_name -> google.protobuf.Timestamp
-	1,  // 20: seagull.agent.v1.Status.Module.condition:type_name -> seagull.agent.v1.Status.Condition
-	17, // 21: seagull.agent.v1.Status.Module.since:type_name -> google.protobuf.Timestamp
-	12, // 22: seagull.agent.v1.Status.Spool.streams:type_name -> seagull.agent.v1.Status.Stream
-	17, // 23: seagull.agent.v1.Status.Stream.oldest_admitted:type_name -> google.protobuf.Timestamp
-	17, // 24: seagull.agent.v1.Status.Stream.last_delivered:type_name -> google.protobuf.Timestamp
-	17, // 25: seagull.agent.v1.Status.Stream.paused_since:type_name -> google.protobuf.Timestamp
-	17, // 26: seagull.agent.v1.Status.Stream.failing_since:type_name -> google.protobuf.Timestamp
-	17, // 27: seagull.agent.v1.Status.Credential.not_after:type_name -> google.protobuf.Timestamp
-	17, // 28: seagull.agent.v1.Status.Credential.renews_at:type_name -> google.protobuf.Timestamp
-	17, // 29: seagull.agent.v1.Status.Credential.renewal_failing_since:type_name -> google.protobuf.Timestamp
-	17, // 30: seagull.agent.v1.Status.Configuration.policy_expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 31: seagull.agent.v1.Status.Update.stage:type_name -> seagull.agent.v1.Status.Update.Stage
-	17, // 32: seagull.agent.v1.Status.Update.since:type_name -> google.protobuf.Timestamp
-	4,  // 33: seagull.agent.v1.Status.Update.failure:type_name -> seagull.agent.v1.Status.Update.Failure
-	34, // [34:34] is the sub-list for method output_type
-	34, // [34:34] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	17, // 14: seagull.agent.v1.Status.compatibility:type_name -> seagull.agent.v1.Status.Compatibility
+	5,  // 15: seagull.agent.v1.StatusBatch.reports:type_name -> seagull.agent.v1.Status
+	19, // 16: seagull.agent.v1.Status.Run.started_at:type_name -> google.protobuf.Timestamp
+	2,  // 17: seagull.agent.v1.Status.Run.previous_ending:type_name -> seagull.agent.v1.Status.Ending
+	19, // 18: seagull.agent.v1.Status.Run.previous_seen_at:type_name -> google.protobuf.Timestamp
+	1,  // 19: seagull.agent.v1.Status.Component.condition:type_name -> seagull.agent.v1.Status.Condition
+	19, // 20: seagull.agent.v1.Status.Component.since:type_name -> google.protobuf.Timestamp
+	1,  // 21: seagull.agent.v1.Status.Module.condition:type_name -> seagull.agent.v1.Status.Condition
+	19, // 22: seagull.agent.v1.Status.Module.since:type_name -> google.protobuf.Timestamp
+	12, // 23: seagull.agent.v1.Status.Spool.streams:type_name -> seagull.agent.v1.Status.Stream
+	19, // 24: seagull.agent.v1.Status.Stream.oldest_admitted:type_name -> google.protobuf.Timestamp
+	19, // 25: seagull.agent.v1.Status.Stream.last_delivered:type_name -> google.protobuf.Timestamp
+	19, // 26: seagull.agent.v1.Status.Stream.paused_since:type_name -> google.protobuf.Timestamp
+	19, // 27: seagull.agent.v1.Status.Stream.failing_since:type_name -> google.protobuf.Timestamp
+	19, // 28: seagull.agent.v1.Status.Credential.not_after:type_name -> google.protobuf.Timestamp
+	19, // 29: seagull.agent.v1.Status.Credential.renews_at:type_name -> google.protobuf.Timestamp
+	19, // 30: seagull.agent.v1.Status.Credential.renewal_failing_since:type_name -> google.protobuf.Timestamp
+	19, // 31: seagull.agent.v1.Status.Configuration.policy_expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 32: seagull.agent.v1.Status.Update.stage:type_name -> seagull.agent.v1.Status.Update.Stage
+	19, // 33: seagull.agent.v1.Status.Update.since:type_name -> google.protobuf.Timestamp
+	4,  // 34: seagull.agent.v1.Status.Update.failure:type_name -> seagull.agent.v1.Status.Update.Failure
+	18, // 35: seagull.agent.v1.Status.Compatibility.updates:type_name -> seagull.agent.v1.Status.Updates
+	23, // 36: seagull.agent.v1.Status.Updates.format:type_name -> seagull.update.v1.Format
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_seagull_agent_v1_status_proto_init() }
@@ -1719,7 +1939,7 @@ func file_seagull_agent_v1_status_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_agent_v1_status_proto_rawDesc), len(file_seagull_agent_v1_status_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
