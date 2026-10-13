@@ -187,7 +187,12 @@ reports; it never disables or revokes an agent.
 `update` says where the newest update the platform asked of the agent stands,
 and its `failure` keeps an update that went wrong apart from a platform that
 could not be reached, so a rollout can stop on the one without stopping on the
-other.
+other. `compatibility` says what the agent speaks — the contracts release it was
+built with, the protocol and the schema of every record it writes or reads — and
+whether it takes updates, in which format, over which state, and the newest root
+and catalog it verified, so a platform knows which agents a release or a change
+of its own can reach before it asks anything of them. Like `build`, it is a
+claim.
 
 ## The agent policy
 
@@ -268,6 +273,19 @@ wants it to run. The platform keeps a package by its digest and hands it only to
 an agent it wants to run that release, and the agent checks every byte against
 the catalog before anything installs it. Whatever the platform decides, it can
 move an agent only between releases an operator authorized.
+
+A `Rollout` moves the agents of a tenant to a release a wave at a time, and is
+the platform's decision too, never signed. A `Wave` names agents one by one, as a
+canary, or opens a share of the rollout, and an agent's place in it is drawn from
+the rollout and the agent alone, so reconnecting, renewing a certificate or
+rotating a key never moves an agent from one wave to another. The platform opens
+the next wave once the open one ran for its soak and enough agents run the
+release, and pauses the rollout once as many agents failed it as the rollout
+allows, by what their status says: an agent that could not reach the platform,
+or refused the release, has not failed it. A paused rollout asks nothing of any
+agent, so the agents that had not moved keep the release they run, and a
+`RolloutChange` pauses, resumes, advances or aborts one. A release assigned to an
+agent one by one outweighs its tenant's rollout.
 
 ## The vulnerability advisory
 
