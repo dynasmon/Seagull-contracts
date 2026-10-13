@@ -5,6 +5,7 @@ package seagull.agent.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "seagull/event/v1/event.proto";
+import "seagull/update/v1/update.proto";
 
 // What one agent says of itself at one moment: whether it runs as it should,
 // what it holds and has not delivered, what it runs as and on, and how the run
@@ -295,6 +296,51 @@ message Status {
     string reason = 7;
   }
 
+  // What the agent speaks and which releases it can take, as its binary and
+  // its settings describe them: a claim, like `build`, from which a platform
+  // tells which agents a change of its own or a rollout can reach before it
+  // asks anything of them.
+  message Compatibility {
+    // The contracts release the binary was built with, such as `v0.18.0`, at
+    // most 128 bytes.
+    string contracts = 1;
+
+    // The protocol version of every batch it sends, and the schema version of
+    // the events and the inventory records it writes. A report's own is its
+    // `schema_version`.
+    uint32 protocol_version = 2;
+    uint32 event_schema_version = 3;
+    uint32 inventory_schema_version = 4;
+
+    // The schema of the signed policies, and of the update metadata, it reads.
+    uint32 policy_schema_version = 5;
+    uint32 update_schema_version = 6;
+
+    Updates updates = 7;
+  }
+
+  // Whether the agent installs the releases the platform asks it to run, and
+  // which of them it can.
+  message Updates {
+    // Whether an operator enabled updates on its host and gave it a root to
+    // verify them under. An agent that does not install releases still says
+    // how it would.
+    bool enabled = 1;
+
+    // How it installs a release, which is the format a release must be in for
+    // it to install it.
+    seagull.update.v1.Format format = 2;
+
+    // The generation of the local state it keeps: it installs no release that
+    // keeps an older one.
+    uint32 state_generation = 3;
+
+    // The newest root it trusts and the newest catalog it verified, zero for
+    // none.
+    uint64 root_version = 4;
+    uint64 catalog_version = 5;
+  }
+
   // Always 1. A platform refuses a report written to a schema it does not read.
   uint32 schema_version = 1;
 
@@ -349,6 +395,9 @@ message Status {
   // Absent while no update was asked of the agent, or where it does not take
   // updates.
   Update update = 17;
+
+  // Absent from an agent that predates it.
+  Compatibility compatibility = 18;
 }
 
 // How recently an agent reported, judged when it is read against the interval
