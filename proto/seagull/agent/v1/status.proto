@@ -317,6 +317,10 @@ message Status {
     uint32 update_schema_version = 6;
 
     Updates updates = 7;
+
+    // The schema of the assessments it writes, zero from an agent that predates
+    // them.
+    uint32 assessment_schema_version = 8;
   }
 
   // Whether the agent installs the releases the platform asks it to run, and
