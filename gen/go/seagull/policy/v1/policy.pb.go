@@ -7,6 +7,7 @@
 package policyv1
 
 import (
+	v1 "github.com/dynasmon/Seagull-contracts/gen/go/seagull/assessment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -90,6 +91,7 @@ const (
 	Module_MODULE_PROCESSES      Module = 3
 	Module_MODULE_FILES          Module = 4
 	Module_MODULE_NETWORK        Module = 5
+	Module_MODULE_ASSESSMENT     Module = 6
 )
 
 // Enum value maps for Module.
@@ -101,6 +103,7 @@ var (
 		3: "MODULE_PROCESSES",
 		4: "MODULE_FILES",
 		5: "MODULE_NETWORK",
+		6: "MODULE_ASSESSMENT",
 	}
 	Module_value = map[string]int32{
 		"MODULE_UNSPECIFIED":    0,
@@ -109,6 +112,7 @@ var (
 		"MODULE_PROCESSES":      3,
 		"MODULE_FILES":          4,
 		"MODULE_NETWORK":        5,
+		"MODULE_ASSESSMENT":     6,
 	}
 )
 
@@ -377,8 +381,12 @@ type Settings struct {
 	// UNSPECIFIED leaves the level to the agent's own configuration.
 	LogLevel LogLevel `protobuf:"varint,1,opt,name=log_level,json=logLevel,proto3,enum=seagull.policy.v1.LogLevel" json:"log_level,omitempty"`
 	// At most one entry per module.
-	Modules       []*ModuleSettings `protobuf:"bytes,2,rep,name=modules,proto3" json:"modules,omitempty"`
-	Budgets       *Budgets          `protobuf:"bytes,3,opt,name=budgets,proto3" json:"budgets,omitempty"`
+	Modules []*ModuleSettings `protobuf:"bytes,2,rep,name=modules,proto3" json:"modules,omitempty"`
+	Budgets *Budgets          `protobuf:"bytes,3,opt,name=budgets,proto3" json:"budgets,omitempty"`
+	// The checks the assessment module runs. Absent, it runs none: an agent's own
+	// configuration names no checks, so what an agent assesses is always what an
+	// operator signed.
+	Assessment    *v1.Checklist `protobuf:"bytes,4,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -434,14 +442,22 @@ func (x *Settings) GetBudgets() *Budgets {
 	return nil
 }
 
+func (x *Settings) GetAssessment() *v1.Checklist {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
+}
+
 type ModuleSettings struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Module     Module                 `protobuf:"varint,1,opt,name=module,proto3,enum=seagull.policy.v1.Module" json:"module,omitempty"`
 	Collection Collection             `protobuf:"varint,2,opt,name=collection,proto3,enum=seagull.policy.v1.Collection" json:"collection,omitempty"`
 	// How often a module that takes stock of the host does it. Absent or zero
-	// leaves the agent's own. Between one minute and 24 hours for the inventory, processes
-	// and files modules, between ten seconds and one hour for the network module,
-	// and never set for the authentication module, which follows its source.
+	// leaves the agent's own. Between one minute and 24 hours for the inventory,
+	// processes, files and assessment modules, between ten seconds and one hour
+	// for the network module, and never set for the authentication module, which
+	// follows its source.
 	Interval *durationpb.Duration `protobuf:"bytes,3,opt,name=interval,proto3" json:"interval,omitempty"`
 	// The paths the files module watches, replacing the ones the agent's own
 	// configuration names, and set for no other module. Absent leaves the agent's
@@ -1175,7 +1191,7 @@ var File_seagull_policy_v1_policy_proto protoreflect.FileDescriptor
 
 const file_seagull_policy_v1_policy_proto_rawDesc = "" +
 	"\n" +
-	"\x1eseagull/policy/v1/policy.proto\x12\x11seagull.policy.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x02\n" +
+	"\x1eseagull/policy/v1/policy.proto\x12\x11seagull.policy.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&seagull/assessment/v1/assessment.proto\"\xcb\x02\n" +
 	"\x06Policy\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\tR\bpolicyId\x12\x1a\n" +
@@ -1186,11 +1202,14 @@ const file_seagull_policy_v1_policy_proto_rawDesc = "" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x127\n" +
 	"\bsettings\x18\a \x01(\v2\x1b.seagull.policy.v1.SettingsR\bsettings\"&\n" +
 	"\aTargets\x12\x1b\n" +
-	"\tagent_ids\x18\x01 \x03(\tR\bagentIds\"\xb7\x01\n" +
+	"\tagent_ids\x18\x01 \x03(\tR\bagentIds\"\xf9\x01\n" +
 	"\bSettings\x128\n" +
 	"\tlog_level\x18\x01 \x01(\x0e2\x1b.seagull.policy.v1.LogLevelR\blogLevel\x12;\n" +
 	"\amodules\x18\x02 \x03(\v2!.seagull.policy.v1.ModuleSettingsR\amodules\x124\n" +
-	"\abudgets\x18\x03 \x01(\v2\x1a.seagull.policy.v1.BudgetsR\abudgets\"\x9d\x02\n" +
+	"\abudgets\x18\x03 \x01(\v2\x1a.seagull.policy.v1.BudgetsR\abudgets\x12@\n" +
+	"\n" +
+	"assessment\x18\x04 \x01(\v2 .seagull.assessment.v1.ChecklistR\n" +
+	"assessment\"\x9d\x02\n" +
 	"\x0eModuleSettings\x121\n" +
 	"\x06module\x18\x01 \x01(\x0e2\x19.seagull.policy.v1.ModuleR\x06module\x12=\n" +
 	"\n" +
@@ -1256,14 +1275,15 @@ const file_seagull_policy_v1_policy_proto_rawDesc = "" +
 	"\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n" +
 	"\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n" +
 	"\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n" +
-	"\x0fLOG_LEVEL_ERROR\x10\x04*\x8d\x01\n" +
+	"\x0fLOG_LEVEL_ERROR\x10\x04*\xa4\x01\n" +
 	"\x06Module\x12\x16\n" +
 	"\x12MODULE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15MODULE_AUTHENTICATION\x10\x01\x12\x14\n" +
 	"\x10MODULE_INVENTORY\x10\x02\x12\x14\n" +
 	"\x10MODULE_PROCESSES\x10\x03\x12\x10\n" +
 	"\fMODULE_FILES\x10\x04\x12\x12\n" +
-	"\x0eMODULE_NETWORK\x10\x05*Y\n" +
+	"\x0eMODULE_NETWORK\x10\x05\x12\x15\n" +
+	"\x11MODULE_ASSESSMENT\x10\x06*Y\n" +
 	"\n" +
 	"Collection\x12\x1a\n" +
 	"\x16COLLECTION_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -1302,7 +1322,8 @@ var file_seagull_policy_v1_policy_proto_goTypes = []any{
 	(*Query)(nil),                 // 13: seagull.policy.v1.Query
 	(*Page)(nil),                  // 14: seagull.policy.v1.Page
 	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 16: google.protobuf.Duration
+	(*v1.Checklist)(nil),          // 16: seagull.assessment.v1.Checklist
+	(*durationpb.Duration)(nil),   // 17: google.protobuf.Duration
 }
 var file_seagull_policy_v1_policy_proto_depIdxs = []int32{
 	4,  // 0: seagull.policy.v1.Policy.targets:type_name -> seagull.policy.v1.Targets
@@ -1312,24 +1333,25 @@ var file_seagull_policy_v1_policy_proto_depIdxs = []int32{
 	0,  // 4: seagull.policy.v1.Settings.log_level:type_name -> seagull.policy.v1.LogLevel
 	6,  // 5: seagull.policy.v1.Settings.modules:type_name -> seagull.policy.v1.ModuleSettings
 	8,  // 6: seagull.policy.v1.Settings.budgets:type_name -> seagull.policy.v1.Budgets
-	1,  // 7: seagull.policy.v1.ModuleSettings.module:type_name -> seagull.policy.v1.Module
-	2,  // 8: seagull.policy.v1.ModuleSettings.collection:type_name -> seagull.policy.v1.Collection
-	16, // 9: seagull.policy.v1.ModuleSettings.interval:type_name -> google.protobuf.Duration
-	7,  // 10: seagull.policy.v1.ModuleSettings.paths:type_name -> seagull.policy.v1.Paths
-	7,  // 11: seagull.policy.v1.ModuleSettings.exclude:type_name -> seagull.policy.v1.Paths
-	16, // 12: seagull.policy.v1.Budgets.spool_max_age:type_name -> google.protobuf.Duration
-	10, // 13: seagull.policy.v1.SignedPolicy.signatures:type_name -> seagull.policy.v1.Signature
-	9,  // 14: seagull.policy.v1.Publication.policy:type_name -> seagull.policy.v1.SignedPolicy
-	15, // 15: seagull.policy.v1.PublishedPolicy.issued_at:type_name -> google.protobuf.Timestamp
-	15, // 16: seagull.policy.v1.PublishedPolicy.expires_at:type_name -> google.protobuf.Timestamp
-	15, // 17: seagull.policy.v1.PublishedPolicy.published_at:type_name -> google.protobuf.Timestamp
-	9,  // 18: seagull.policy.v1.PublishedPolicy.policy:type_name -> seagull.policy.v1.SignedPolicy
-	12, // 19: seagull.policy.v1.Page.policies:type_name -> seagull.policy.v1.PublishedPolicy
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	16, // 7: seagull.policy.v1.Settings.assessment:type_name -> seagull.assessment.v1.Checklist
+	1,  // 8: seagull.policy.v1.ModuleSettings.module:type_name -> seagull.policy.v1.Module
+	2,  // 9: seagull.policy.v1.ModuleSettings.collection:type_name -> seagull.policy.v1.Collection
+	17, // 10: seagull.policy.v1.ModuleSettings.interval:type_name -> google.protobuf.Duration
+	7,  // 11: seagull.policy.v1.ModuleSettings.paths:type_name -> seagull.policy.v1.Paths
+	7,  // 12: seagull.policy.v1.ModuleSettings.exclude:type_name -> seagull.policy.v1.Paths
+	17, // 13: seagull.policy.v1.Budgets.spool_max_age:type_name -> google.protobuf.Duration
+	10, // 14: seagull.policy.v1.SignedPolicy.signatures:type_name -> seagull.policy.v1.Signature
+	9,  // 15: seagull.policy.v1.Publication.policy:type_name -> seagull.policy.v1.SignedPolicy
+	15, // 16: seagull.policy.v1.PublishedPolicy.issued_at:type_name -> google.protobuf.Timestamp
+	15, // 17: seagull.policy.v1.PublishedPolicy.expires_at:type_name -> google.protobuf.Timestamp
+	15, // 18: seagull.policy.v1.PublishedPolicy.published_at:type_name -> google.protobuf.Timestamp
+	9,  // 19: seagull.policy.v1.PublishedPolicy.policy:type_name -> seagull.policy.v1.SignedPolicy
+	12, // 20: seagull.policy.v1.Page.policies:type_name -> seagull.policy.v1.PublishedPolicy
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_seagull_policy_v1_policy_proto_init() }
