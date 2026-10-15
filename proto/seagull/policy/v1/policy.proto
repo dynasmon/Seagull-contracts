@@ -4,6 +4,7 @@ package seagull.policy.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "seagull/assessment/v1/assessment.proto";
 
 // How an agent is told to run, by somebody who holds a key the platform does
 // not.
@@ -86,6 +87,7 @@ enum Module {
   MODULE_PROCESSES = 3;
   MODULE_FILES = 4;
   MODULE_NETWORK = 5;
+  MODULE_ASSESSMENT = 6;
 }
 
 // Whether a module collects. UNSPECIFIED leaves it to the agent's own
@@ -107,6 +109,11 @@ message Settings {
   repeated ModuleSettings modules = 2;
 
   Budgets budgets = 3;
+
+  // The checks the assessment module runs. Absent, it runs none: an agent's own
+  // configuration names no checks, so what an agent assesses is always what an
+  // operator signed.
+  seagull.assessment.v1.Checklist assessment = 4;
 }
 
 message ModuleSettings {
@@ -114,9 +121,10 @@ message ModuleSettings {
   Collection collection = 2;
 
   // How often a module that takes stock of the host does it. Absent or zero
-  // leaves the agent's own. Between one minute and 24 hours for the inventory, processes
-  // and files modules, between ten seconds and one hour for the network module,
-  // and never set for the authentication module, which follows its source.
+  // leaves the agent's own. Between one minute and 24 hours for the inventory,
+  // processes, files and assessment modules, between ten seconds and one hour
+  // for the network module, and never set for the authentication module, which
+  // follows its source.
   google.protobuf.Duration interval = 3;
 
   // The paths the files module watches, replacing the ones the agent's own
