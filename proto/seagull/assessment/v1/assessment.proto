@@ -1,0 +1,368 @@
+syntax = "proto3";
+
+package seagull.assessment.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/event/v1/event.proto";
+
+// The checks an operator asks the agents a policy names to run against their
+// own hosts.
+//
+// A checklist travels inside a signed `seagull.policy.v1.Policy` and nowhere
+// else, so what an agent assesses is always what an operator signed, and every
+// result it reports names the policy revision that asked for it. A check is a
+// typed test with bounded parameters, read from the metadata, settings and
+// state a host keeps: no check runs a command, and none reads more of a file
+// than the directive it names.
+message Checklist {
+  // Between 1 and 512, with distinct `check_id`s.
+  repeated Check checks = 1;
+}
+
+// One thing an operator expects of a host, tested one way.
+//
+// A check an agent cannot read whole — a test, or a value in one, newer than
+// its build reads — is answered UNSUPPORTED rather than refused, so a policy
+// can carry checks that some of the agents it names do not run. Everything
+// else in a policy is read whole or refused whole.
+message Check {
+  // Names the check in the policy and in every result that answers it: the
+  // pattern an agent identifier follows, at most 64 bytes.
+  string check_id = 1;
+
+  // What the check is for, in the operator's words: text of at most 256 bytes.
+  // An agent does not read it.
+  string title = 2;
+
+  // Exactly one.
+  oneof test {
+    FileTest file = 16;
+    AccountTest account = 17;
+    KernelParameterTest kernel_parameter = 18;
+    KernelModuleTest kernel_module = 19;
+    PackageTest package = 20;
+    ServiceTest service = 21;
+    DirectiveTest directive = 22;
+  }
+}
+
+// Whether what a check is about is on the host at all, and what its absence
+// means.
+enum Presence {
+  // Judged only where it is there: where it is not, the check does not apply.
+  PRESENCE_UNSPECIFIED = 0;
+
+  // It must be there, and its absence fails the check.
+  PRESENCE_REQUIRED = 1;
+
+  // It must not be there, and its presence fails the check. Nothing else about
+  // it is judged.
+  PRESENCE_FORBIDDEN = 2;
+}
+
+// What one path on the host is, judged from its metadata and never from its
+// content. A check judges something: a presence other than UNSPECIFIED, or
+// something of what the path is.
+message FileTest {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_REGULAR = 1;
+    KIND_DIRECTORY = 2;
+    KIND_SYMLINK = 3;
+  }
+
+  // An absolute path with nothing to resolve — no `.` or `..`, no empty or
+  // trailing separator — of at most 4096 bytes. Never `/`, and never within
+  // /proc, /sys, /dev, /run, /tmp or /var/tmp, which hold what the kernel and
+  // running services make up rather than what a host is configured with, and
+  // which an agent's own service may be shown differently from the host. A
+  // symbolic link on the way to it is followed and the path itself is not, so
+  // a link is judged as a link.
+  string path = 1;
+
+  Presence presence = 2;
+
+  // What it must be. UNSPECIFIED leaves its kind unjudged.
+  Kind kind = 3;
+
+  // The account and the group that must own it, by the numbers the host gives
+  // them. Absent leaves them unjudged.
+  optional uint32 user_id = 4;
+  optional uint32 group_id = 5;
+
+  // The permission bits it may have at most, within 07777: it fails when it has
+  // any bit beyond these, so 0640 passes a file of 0600 and fails one of 0644.
+  // Absent leaves its permissions unjudged.
+  optional uint32 permissions = 6;
+}
+
+// What the host's own account files say of its accounts and groups: /etc/passwd
+// and /etc/group, never a directory service the host also consults, and never
+// the files that hold passwords.
+message AccountTest {
+  enum Rule {
+    RULE_UNSPECIFIED = 0;
+
+    // No account but `root` has the user id 0.
+    RULE_ONLY_ROOT_HAS_USER_ID_0 = 1;
+
+    // No two accounts share a user id.
+    RULE_UNIQUE_USER_IDS = 2;
+
+    // No two accounts share a name.
+    RULE_UNIQUE_USER_NAMES = 3;
+
+    // No two groups share a group id.
+    RULE_UNIQUE_GROUP_IDS = 4;
+
+    // No two groups share a name.
+    RULE_UNIQUE_GROUP_NAMES = 5;
+
+    // The primary group of every account is one /etc/group holds.
+    RULE_PRIMARY_GROUPS_EXIST = 6;
+
+    // The group `group` names has no member: /etc/group lists none, and it is
+    // no account's primary group. Where the host has no such group, the check
+    // does not apply.
+    RULE_GROUP_HAS_NO_MEMBERS = 7;
+  }
+
+  Rule rule = 1;
+
+  // The group a RULE_GROUP_HAS_NO_MEMBERS check is about, and set for no other
+  // rule: a name of at most 64 bytes, printable and without white space or `:`.
+  string group = 2;
+}
+
+// A parameter of the running kernel, as /proc/sys holds it. The value in force
+// is judged, not what the host is configured to set at boot.
+message KernelParameterTest {
+  // By its sysctl name, such as `net.ipv4.ip_forward`: components of letters,
+  // digits, `_` and `-`, separated by dots, at most 255 bytes, where a `/`
+  // stands for a dot within a component, as in `net.ipv4.conf.eth0/100.rp_filter`.
+  string name = 1;
+
+  // Absent is a kernel without it, such as one that runs without IPv6.
+  Presence presence = 2;
+
+  // The values it may hold, compared once every run of white space in it is
+  // made one space: between 1 and 16, each of at most 128 printable bytes.
+  repeated string allowed = 3;
+
+  // Or bounds on a parameter that holds one integer. A check carries either
+  // `allowed` or at least one bound, never both, and neither when its presence
+  // is FORBIDDEN, which is then all it judges. A check judges something.
+  optional int64 at_least = 4;
+  optional int64 at_most = 5;
+}
+
+// A module of the running kernel: whether it is in the kernel, and whether the
+// host's module configuration keeps it out. A check judges at least one of the
+// two.
+message KernelModuleTest {
+  // By the name the kernel gives it, such as `cramfs`: letters, digits, `_` and
+  // `-`, at most 55 bytes. `-` and `_` name the same module, as they do to the
+  // kernel.
+  string name = 1;
+
+  // REQUIRED fails while it is not in the kernel and FORBIDDEN while it is, as
+  // /proc/modules and /sys/module list it.
+  Presence loaded = 2;
+
+  // When set, the check fails unless the host's modprobe configuration makes
+  // loading it run nothing but /bin/false or /bin/true, or the same programs
+  // under /usr/bin: the first `install` line for the module, which is the one
+  // modprobe follows whoever asks for the module, by its name or by a device's
+  // alias.
+  bool disabled = 3;
+}
+
+// A package the host's package manager holds installed.
+message PackageTest {
+  // By the name the package manager gives it, such as `telnetd`: letters,
+  // digits, `+`, `.`, `_` and `-`, at most 255 bytes, in any architecture.
+  string name = 1;
+
+  // REQUIRED fails while it is not installed and FORBIDDEN while it is. A
+  // package test says one or the other.
+  Presence presence = 2;
+}
+
+// A unit of the host's service manager: whether it starts at boot, and whether
+// it runs.
+message ServiceTest {
+  enum Startup {
+    STARTUP_UNSPECIFIED = 0;
+
+    // The service manager holds it enabled, which is systemd's `enabled` or
+    // `enabled-runtime`.
+    STARTUP_ENABLED = 1;
+
+    // Disabled, masked, or a unit the host does not have. A unit in any other
+    // state, such as `static` or `generated`, may be started at boot by
+    // something else and fails it.
+    STARTUP_DISABLED = 2;
+
+    // Masked, or a unit the host does not have, so nothing can start it.
+    STARTUP_MASKED = 3;
+  }
+
+  enum Activity {
+    ACTIVITY_UNSPECIFIED = 0;
+
+    // Running, which is systemd's `active` or `reloading`.
+    ACTIVITY_ACTIVE = 1;
+
+    // Not running: `inactive`, `failed`, or a unit the host does not have.
+    ACTIVITY_INACTIVE = 2;
+  }
+
+  // By its full name, such as `ssh.service` or `rpcbind.socket`: at most 255
+  // bytes, of the characters a unit name holds, and never a template such as
+  // `getty@.service`.
+  string unit = 1;
+
+  // UNSPECIFIED leaves either unjudged, and a check judges at least one.
+  Startup startup = 2;
+  Activity activity = 3;
+}
+
+// One directive of a configuration file a program reads, as that program
+// applies it.
+message DirectiveTest {
+  enum Source {
+    SOURCE_UNSPECIFIED = 0;
+
+    // The OpenSSH server's /etc/ssh/sshd_config and every file it includes.
+    // What is judged is the first value sshd reads outside any Match block,
+    // which is the one it applies, and the value of every Match block that sets
+    // the directive, since sshd applies that one to whatever the block matches.
+    // A directive sshd gathers from every line that names it, such as
+    // `AllowUsers` or `Port`, is answered UNSUPPORTED. Where the host has no
+    // /etc/ssh/sshd_config, the check does not apply.
+    SOURCE_SSHD = 1;
+
+    // /etc/login.defs, which the shadow utilities read: the last value the
+    // file sets is the one they apply. Where the host has no such file, the
+    // check does not apply.
+    SOURCE_LOGIN_DEFS = 2;
+  }
+
+  Source source = 1;
+
+  // The directive, such as `PermitRootLogin` or `PASS_MAX_DAYS`: letters,
+  // digits and `_`, at most 64 bytes. sshd matches the names of its directives
+  // without regard to case, and login.defs with regard to it.
+  string name = 2;
+
+  // A directive the file never sets is one the program applies a default of
+  // its own to, which differs between its releases: `assumed` is that default
+  // as the operator expects it, judged in its place, at most 256 printable
+  // bytes, and an integer when the check carries bounds. Empty, an unset
+  // directive fails the check.
+  string assumed = 3;
+
+  // The values it may have — its arguments, joined by one space — compared
+  // without regard to case: between 1 and 16, each of at most 256 printable
+  // bytes.
+  repeated string allowed = 4;
+
+  // Or bounds on a directive that holds one integer, read as the program reads
+  // it: in decimal for sshd, and for login.defs with a leading `0` read as
+  // octal and `0x` as hexadecimal, so `UMASK 027` holds 23. A check carries
+  // either `allowed` or at least one bound, never both.
+  optional int64 at_least = 5;
+  optional int64 at_most = 6;
+}
+
+// A closed set, because a platform folds the posture of an estate by it.
+enum Outcome {
+  OUTCOME_UNSPECIFIED = 0;
+
+  // The host is as the check expects.
+  OUTCOME_PASS = 1;
+
+  // The host is not as the check expects, as `evidence` says.
+  OUTCOME_FAIL = 2;
+
+  // The agent could not read what the check is about — a file or a directory
+  // its account may not read, a tool that failed, a bound it reached — so the
+  // check says nothing of the host. `evidence` says what, and how the agent
+  // could read it.
+  OUTCOME_ERROR = 3;
+
+  // The agent does not run such a check: a test, or a value in one, newer than
+  // its build reads, or a test its host has no way of answering, such as a
+  // package on a host without the package manager the agent reads.
+  OUTCOME_UNSUPPORTED = 4;
+
+  // What the check is about is not on the host, and the check says that leaves
+  // nothing to judge.
+  OUTCOME_NOT_APPLICABLE = 5;
+}
+
+// What one check found on one host.
+message Result {
+  // The check it answers, as the policy names it.
+  string check_id = 1;
+
+  Outcome outcome = 2;
+
+  // What the agent found, in its own words, at most 512 bytes: the metadata,
+  // value, state or names the check judged. Never more of a file than the
+  // value of the directive a check names, and never a value the check did not
+  // judge.
+  string evidence = 3;
+}
+
+// What one agent found, at one moment, when it ran the checks of the policy it
+// runs on.
+//
+// An assessment is complete: it answers every check of the policy revision it
+// names, once each and in the order the policy lists them, so the newest
+// assessment of an agent is its posture, and a check its newest assessment does
+// not answer is one its policy no longer asks for. One that answers nothing
+// says the policy it runs on asks for no checks. An agent assesses again on its
+// own schedule and keeps every assessment that changed something until the
+// platform holds it, so what a host's posture was over time can be read back.
+//
+// Identity, tenant and reception are the platform's to write, exactly as for an
+// event: the agent comes from the verified certificate and the tenant from the
+// registry's record of it.
+message Assessment {
+  // Names this assessment, and stays the same when it is sent again: an
+  // identifier of between 8 and 64 bytes.
+  string assessment_id = 1;
+
+  // Always 1. A platform refuses an assessment written to a schema it does not
+  // read.
+  uint32 schema_version = 2;
+
+  // The policy whose checks it answers, as signed.
+  string policy_id = 3;
+  uint64 policy_revision = 4;
+
+  // When the agent finished running the checks, by its own clock, which is
+  // what decides whether one assessment is newer than another. Bounded by the
+  // same admission window an inventory record's `collected_at` is.
+  google.protobuf.Timestamp assessed_at = 5;
+
+  seagull.event.v1.Origin origin = 6;
+  seagull.event.v1.Collection collection = 7;
+  seagull.event.v1.Reception reception = 8;
+
+  // At most 512, one for each check of the policy, in its order.
+  repeated Result results = 9;
+}
+
+// What an agent sends, and what a gateway admits or refuses whole. It is
+// answered with `seagull.ingest.v1.BatchAck` and refused with
+// `seagull.ingest.v1.Rejection`, the same two messages every other batch is
+// answered with, behind the same gate.
+message AssessmentBatch {
+  string batch_id = 1;
+  uint32 protocol_version = 2;
+
+  // Between 1 and 16.
+  repeated Assessment assessments = 3;
+}

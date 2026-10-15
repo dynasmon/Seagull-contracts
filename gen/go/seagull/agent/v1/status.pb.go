@@ -1518,8 +1518,11 @@ type Status_Compatibility struct {
 	PolicySchemaVersion uint32          `protobuf:"varint,5,opt,name=policy_schema_version,json=policySchemaVersion,proto3" json:"policy_schema_version,omitempty"`
 	UpdateSchemaVersion uint32          `protobuf:"varint,6,opt,name=update_schema_version,json=updateSchemaVersion,proto3" json:"update_schema_version,omitempty"`
 	Updates             *Status_Updates `protobuf:"bytes,7,opt,name=updates,proto3" json:"updates,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// The schema of the assessments it writes, zero from an agent that predates
+	// them.
+	AssessmentSchemaVersion uint32 `protobuf:"varint,8,opt,name=assessment_schema_version,json=assessmentSchemaVersion,proto3" json:"assessment_schema_version,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Status_Compatibility) Reset() {
@@ -1599,6 +1602,13 @@ func (x *Status_Compatibility) GetUpdates() *Status_Updates {
 		return x.Updates
 	}
 	return nil
+}
+
+func (x *Status_Compatibility) GetAssessmentSchemaVersion() uint32 {
+	if x != nil {
+		return x.AssessmentSchemaVersion
+	}
+	return 0
 }
 
 // Whether the agent installs the releases the platform asks it to run, and
@@ -1692,7 +1702,7 @@ var File_seagull_agent_v1_status_proto protoreflect.FileDescriptor
 
 const file_seagull_agent_v1_status_proto_rawDesc = "" +
 	"\n" +
-	"\x1dseagull/agent/v1/status.proto\x12\x10seagull.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cseagull/event/v1/event.proto\x1a\x1eseagull/update/v1/update.proto\"\x8c#\n" +
+	"\x1dseagull/agent/v1/status.proto\x12\x10seagull.agent.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cseagull/event/v1/event.proto\x1a\x1eseagull/update/v1/update.proto\"\xc8#\n" +
 	"\x06Status\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12'\n" +
 	"\x0finstallation_id\x18\x02 \x01(\tR\x0einstallationId\x12\x1a\n" +
@@ -1804,7 +1814,7 @@ const file_seagull_agent_v1_status_proto_rawDesc = "" +
 	"\x12FAILURE_UNVERIFIED\x10\x02\x12\x13\n" +
 	"\x0fFAILURE_REFUSED\x10\x03\x12\x18\n" +
 	"\x14FAILURE_INSTALLATION\x10\x04\x12\x15\n" +
-	"\x11FAILURE_UNHEALTHY\x10\x05\x1a\xe8\x02\n" +
+	"\x11FAILURE_UNHEALTHY\x10\x05\x1a\xa4\x03\n" +
 	"\rCompatibility\x12\x1c\n" +
 	"\tcontracts\x18\x01 \x01(\tR\tcontracts\x12)\n" +
 	"\x10protocol_version\x18\x02 \x01(\rR\x0fprotocolVersion\x120\n" +
@@ -1812,7 +1822,8 @@ const file_seagull_agent_v1_status_proto_rawDesc = "" +
 	"\x18inventory_schema_version\x18\x04 \x01(\rR\x16inventorySchemaVersion\x122\n" +
 	"\x15policy_schema_version\x18\x05 \x01(\rR\x13policySchemaVersion\x122\n" +
 	"\x15update_schema_version\x18\x06 \x01(\rR\x13updateSchemaVersion\x12:\n" +
-	"\aupdates\x18\a \x01(\v2 .seagull.agent.v1.Status.UpdatesR\aupdates\x1a\xcd\x01\n" +
+	"\aupdates\x18\a \x01(\v2 .seagull.agent.v1.Status.UpdatesR\aupdates\x12:\n" +
+	"\x19assessment_schema_version\x18\b \x01(\rR\x17assessmentSchemaVersion\x1a\xcd\x01\n" +
 	"\aUpdates\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x121\n" +
 	"\x06format\x18\x02 \x01(\x0e2\x19.seagull.update.v1.FormatR\x06format\x12)\n" +

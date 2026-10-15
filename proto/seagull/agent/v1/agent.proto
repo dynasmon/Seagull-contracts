@@ -4,6 +4,7 @@ package seagull.agent.v1;
 
 import "google/protobuf/timestamp.proto";
 import "seagull/agent/v1/status.proto";
+import "seagull/assessment/v1/assessment.proto";
 import "seagull/hunt/v1/hunt.proto";
 
 // Where an agent stands with the platform. A closed set, because a transition is
@@ -100,6 +101,12 @@ message Agent {
   // That report itself, carried when one agent is read and left out of a page
   // of them.
   Status status = 15;
+
+  // The newest assessment the agent made of its host, read back from where its
+  // assessments landed: its posture, as the checks of the policy it ran on
+  // found it. Carried when one agent is read and left out of a page of them,
+  // and absent when none arrived.
+  seagull.assessment.v1.Assessment assessment = 16;
 }
 
 // One thing somebody did to an agent. Append only: the trail is what makes a

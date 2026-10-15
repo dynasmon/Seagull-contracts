@@ -24,6 +24,7 @@ proto/seagull/inventory/v1/     what an asset was observed to have
 proto/seagull/vulnerability/v1/ what a source says is wrong with software
 proto/seagull/policy/v1/        how an agent is told to run, signed off the platform
 proto/seagull/update/v1/        which releases an agent may install, signed off the platform
+proto/seagull/assessment/v1/    the checks a policy asks an agent to run, and what it found
 gen/go/                         generated Go, committed
 ```
 
@@ -232,7 +233,9 @@ budgets. A budget lowers the ceiling an agent's configuration sets and never
 raises it, and nothing in a policy names the platform, what the agent trusts,
 its identity or its timeouts, so no policy can turn a verification off or take a
 ceiling away. An agent refuses a policy whole, keeping the one it holds, when
-the configuration it would make is one it does not run on.
+the configuration it would make is one it does not run on. A policy also
+carries the checks the assessment module runs, which no agent's own
+configuration names.
 
 ## The agent update
 
@@ -286,6 +289,34 @@ or refused the release, has not failed it. A paused rollout asks nothing of any
 agent, so the agents that had not moved keep the release they run, and a
 `RolloutChange` pauses, resumes, advances or aborts one. A release assigned to an
 agent one by one outweighs its tenant's rollout.
+
+## The assessment
+
+A `Checklist` is what an operator expects of the hosts a policy names, and it
+travels inside the signed policy and nowhere else: an agent's own configuration
+names no checks, so what an agent assesses is always what an operator signed,
+and every result names the policy revision that asked for it. A `Check` is one
+typed test with bounded parameters — a path's metadata, the host's account
+files, a kernel parameter or module, a package, a service unit, a directive of
+sshd or login.defs — read from what a host keeps and never by running a command.
+No test reads more of a file than the directive it names.
+
+An `Outcome` is closed, and only `PASS` says the host is as the check expects.
+`ERROR` says the agent could not read what the check is about, `UNSUPPORTED`
+that it does not run such a check, and `NOT_APPLICABLE` that what the check is
+about is not on the host and the check says that leaves nothing to judge; none
+of them reads as a pass. A check an agent cannot read whole, because a test or a
+value in it is newer than its build, is answered `UNSUPPORTED` rather than
+refused, so a policy can carry checks some of the agents it names do not run.
+
+An `Assessment` answers every check of the revision it names, once each, so the
+newest assessment of an agent is its posture, and one that answers nothing says
+its policy asks for none. Assessments travel on a stream of their own, are
+answered and refused with the same `BatchAck` and `Rejection` as every other
+batch, and are stamped with the identity and reception the platform writes, as
+an event is. An agent keeps each assessment that changed something until the
+platform holds it, so what a posture was over time can be read back, and the
+newest one is carried when one agent is read.
 
 ## The vulnerability advisory
 
