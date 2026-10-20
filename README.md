@@ -65,6 +65,12 @@ Three timestamps are distinct and never collapsed:
 never merged with what a producer sent. A producer cannot choose its own
 identity, its tenant, or its place in the platform's timeline.
 
+`event_id` is the producer's, and it is unique among the events one agent sends:
+the same event sent again carries the same identifier, and no two events of one
+agent share one. Two agents may use the same identifier without either losing an
+event, because the platform names what it stores by the agent that sent it as
+well as by the identifier.
+
 The shape is aligned with OCSF where that buys interoperability, and departs
 from it where Seagull has its own need. It does not carry OCSF identifiers.
 
