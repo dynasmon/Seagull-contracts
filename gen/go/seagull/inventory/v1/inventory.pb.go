@@ -1154,6 +1154,12 @@ func (*Item_Process) isItem_Body() {}
 // Identity, tenant and reception are the platform's to write and a producer
 // cannot place itself in them, exactly as for an event: the agent comes from the
 // verified certificate and the tenant from the registry's record of it.
+//
+// A record carries at most 10,000 items and encodes, once the gateway has
+// written identity, tenant and reception into it, to at most 4 MiB. A heavier
+// one is refused for good with `invalid_record`, its index and the field
+// `record`; a snapshot is never sent in parts, so the kind is collected again
+// rather than the record sent again.
 type Record struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RecordId      string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
