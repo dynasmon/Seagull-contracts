@@ -257,7 +257,9 @@ type Incident struct {
 	Confidence Confidence     `protobuf:"varint,8,opt,name=confidence,proto3,enum=seagull.incident.v1.Confidence" json:"confidence,omitempty"`
 	Technique  *v1.Technique  `protobuf:"bytes,9,opt,name=technique,proto3" json:"technique,omitempty"`
 	EventClass v11.EventClass `protobuf:"varint,10,opt,name=event_class,json=eventClass,proto3,enum=seagull.event.v1.EventClass" json:"event_class,omitempty"`
-	AgentId    string         `protobuf:"bytes,11,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	// The agent the story is attributed to, which is the detection's: the agent
+	// of its last stage. Each stage below names the agent that sent its event.
+	AgentId string `protobuf:"bytes,11,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
 	// What the story is made of: one event per stage, in the order the rule
 	// declares them. This is the trace to the component events, and it is bounded
 	// by the stages a rule may declare rather than by how much an attacker sent.
