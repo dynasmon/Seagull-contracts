@@ -96,10 +96,13 @@ A rule may instead carry a `Sequence`, which is an ordered story rather than a
 single event: named stages, satisfied in the order they are written, in event
 time, inside one window, by events that share a group. A rule carries a `match`
 or a `Sequence` and never both, because the stages are what it matches with.
-`Correlation` on the detection names the event that satisfied each stage, and
-carries how far the clocks that ordered them disagreed — ordering rests on the
-producer's clock, so a spread wider than the story's own span means the order is
-not established by the data.
+`Correlation` on the detection names the event that satisfied each stage and the
+agent that sent it, and carries how far the clocks that ordered them disagreed —
+ordering rests on the producer's clock, so a spread wider than the story's own
+span means the order is not established by the data. A detection is named by the
+events it was decided from, each by its agent and its identifier, so the same
+events name the same detection whichever of them arrived last; a story whose
+stages came from several agents is about the agent of its last stage.
 
 ## The alert
 
@@ -132,8 +135,8 @@ them apart is what stops a single alerts table from having to mean all four.
 It is named by the correlation detection that produced it, the way an alert is
 named by the detection that raised it, so a replayed batch finds the incident
 that already exists. `stages` carries one event per stage in the order the rule
-declares them, so the story can be traced back to its component events and,
-through `detection_id`, to what decided it. Nothing an operator does to an
+declares them, each with the agent that sent it, so the story can be traced back
+to its component events and, through `detection_id`, to what decided it. Nothing an operator does to an
 incident writes to any of them.
 
 `Confidence` is the platform's and not the rule author's. Severity says how much

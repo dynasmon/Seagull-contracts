@@ -89,6 +89,9 @@ message Incident {
   seagull.detection.v1.Technique technique = 9;
 
   seagull.event.v1.EventClass event_class = 10;
+
+  // The agent the story is attributed to, which is the detection's: the agent
+  // of its last stage. Each stage below names the agent that sent its event.
   string agent_id = 11;
 
   // What the story is made of: one event per stage, in the order the rule

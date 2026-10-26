@@ -95,6 +95,13 @@ message Stage {
   string name = 1;
   string event_id = 2;
   google.protobuf.Timestamp event_time = 3;
+
+  // The agent that sent the event, as the gateway read it from the certificate
+  // the event arrived with. An identifier is the producer's to choose, so an
+  // event is named by its agent as well, and this is what traces a stage to the
+  // event stored under it. Empty only on a detection decided before stages
+  // named their agents.
+  string agent_id = 4;
 }
 
 // What an ordered sequence of events came to, and nothing a rule deciding one
@@ -103,8 +110,8 @@ message Stage {
 // are different pieces of work, and only this tells them apart.
 message Correlation {
   // One per stage, in the order the rule declares them, each naming the event
-  // that satisfied it. The events are also carried in `source_event_ids`; this
-  // says which of them played which part.
+  // that satisfied it and the agent that sent it. The identifiers are also
+  // carried in `source_event_ids`; this says which of them played which part.
   repeated Stage stages = 1;
 
   // How far back the rule was told to look. The span the events actually
@@ -128,10 +135,11 @@ message Correlation {
 // alert. Nor is it an event — the events it was decided from are named here and
 // stored elsewhere.
 message Detection {
-  // Derived from the rule, its revision, and the events it was decided from, so
-  // that deciding the same events against the same rule twice names the same
-  // detection. A replay therefore rewrites what it already wrote instead of
-  // adding a second copy of it.
+  // Derived from the rule, its revision, the tenant and the events it was
+  // decided from, each named by the agent that sent it and the identifier that
+  // agent gave it, so that deciding the same events against the same rule twice
+  // names the same detection. A replay therefore rewrites what it already wrote
+  // instead of adding a second copy of it.
   string detection_id = 1;
   uint32 schema_version = 2;
 
@@ -145,6 +153,11 @@ message Detection {
   Technique technique = 6;
 
   seagull.event.v1.EventClass event_class = 7;
+
+  // What the detection is about. One agent's events give the origin of the
+  // event that decided it; a correlation whose stages came from several agents
+  // names the tenant and the agent of its last stage, where the story ended,
+  // and no host, because no single host told it.
   seagull.event.v1.Origin origin = 8;
   repeated string source_event_ids = 9;
 

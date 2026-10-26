@@ -512,10 +512,16 @@ func (x *Aggregation) GetGroup() []*Grouping {
 // numbered, because a sequence is a story and a reader should not have to fetch
 // the rule to learn what its third step was.
 type Stage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	EventTime     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=event_time,json=eventTime,proto3" json:"event_time,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Name      string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	EventId   string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=event_time,json=eventTime,proto3" json:"event_time,omitempty"`
+	// The agent that sent the event, as the gateway read it from the certificate
+	// the event arrived with. An identifier is the producer's to choose, so an
+	// event is named by its agent as well, and this is what traces a stage to the
+	// event stored under it. Empty only on a detection decided before stages
+	// named their agents.
+	AgentId       string `protobuf:"bytes,4,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +577,13 @@ func (x *Stage) GetEventTime() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Stage) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
 // What an ordered sequence of events came to, and nothing a rule deciding one
 // event at a time can say. A detection reading "a successful login" and one
 // reading "a successful login after twenty failures from the same address"
@@ -578,8 +591,8 @@ func (x *Stage) GetEventTime() *timestamppb.Timestamp {
 type Correlation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// One per stage, in the order the rule declares them, each naming the event
-	// that satisfied it. The events are also carried in `source_event_ids`; this
-	// says which of them played which part.
+	// that satisfied it and the agent that sent it. The identifiers are also
+	// carried in `source_event_ids`; this says which of them played which part.
 	Stages []*Stage `protobuf:"bytes,1,rep,name=stages,proto3" json:"stages,omitempty"`
 	// How far back the rule was told to look. The span the events actually
 	// covered is the difference between the first and last stage above.
@@ -661,21 +674,26 @@ func (x *Correlation) GetGroup() []*Grouping {
 // stored elsewhere.
 type Detection struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Derived from the rule, its revision, and the events it was decided from, so
-	// that deciding the same events against the same rule twice names the same
-	// detection. A replay therefore rewrites what it already wrote instead of
-	// adding a second copy of it.
+	// Derived from the rule, its revision, the tenant and the events it was
+	// decided from, each named by the agent that sent it and the identifier that
+	// agent gave it, so that deciding the same events against the same rule twice
+	// names the same detection. A replay therefore rewrites what it already wrote
+	// instead of adding a second copy of it.
 	DetectionId   string `protobuf:"bytes,1,opt,name=detection_id,json=detectionId,proto3" json:"detection_id,omitempty"`
 	SchemaVersion uint32 `protobuf:"varint,2,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
 	Rule          *Rule  `protobuf:"bytes,3,opt,name=rule,proto3" json:"rule,omitempty"`
 	// The set of rules the deciding process was pinned to, named by what is in
 	// it, so a detection can be traced back to exactly what decided it.
-	RulesetId      string        `protobuf:"bytes,4,opt,name=ruleset_id,json=rulesetId,proto3" json:"ruleset_id,omitempty"`
-	Severity       Severity      `protobuf:"varint,5,opt,name=severity,proto3,enum=seagull.detection.v1.Severity" json:"severity,omitempty"`
-	Technique      *Technique    `protobuf:"bytes,6,opt,name=technique,proto3" json:"technique,omitempty"`
-	EventClass     v1.EventClass `protobuf:"varint,7,opt,name=event_class,json=eventClass,proto3,enum=seagull.event.v1.EventClass" json:"event_class,omitempty"`
-	Origin         *v1.Origin    `protobuf:"bytes,8,opt,name=origin,proto3" json:"origin,omitempty"`
-	SourceEventIds []string      `protobuf:"bytes,9,rep,name=source_event_ids,json=sourceEventIds,proto3" json:"source_event_ids,omitempty"`
+	RulesetId  string        `protobuf:"bytes,4,opt,name=ruleset_id,json=rulesetId,proto3" json:"ruleset_id,omitempty"`
+	Severity   Severity      `protobuf:"varint,5,opt,name=severity,proto3,enum=seagull.detection.v1.Severity" json:"severity,omitempty"`
+	Technique  *Technique    `protobuf:"bytes,6,opt,name=technique,proto3" json:"technique,omitempty"`
+	EventClass v1.EventClass `protobuf:"varint,7,opt,name=event_class,json=eventClass,proto3,enum=seagull.event.v1.EventClass" json:"event_class,omitempty"`
+	// What the detection is about. One agent's events give the origin of the
+	// event that decided it; a correlation whose stages came from several agents
+	// names the tenant and the agent of its last stage, where the story ended,
+	// and no host, because no single host told it.
+	Origin         *v1.Origin `protobuf:"bytes,8,opt,name=origin,proto3" json:"origin,omitempty"`
+	SourceEventIds []string   `protobuf:"bytes,9,rep,name=source_event_ids,json=sourceEventIds,proto3" json:"source_event_ids,omitempty"`
 	// When the thing happened, taken from the events it was decided from, and
 	// when the platform decided it. The first places a detection on a timeline;
 	// the second says when this evaluation ran and is not part of its identity.
@@ -857,12 +875,13 @@ const file_seagull_detection_v1_detection_proto_rawDesc = "" +
 	"\x06window\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12D\n" +
 	"\x10first_event_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0efirstEventTime\x12\x1c\n" +
 	"\tsaturated\x18\x05 \x01(\bR\tsaturated\x124\n" +
-	"\x05group\x18\x06 \x03(\v2\x1e.seagull.detection.v1.GroupingR\x05group\"q\n" +
+	"\x05group\x18\x06 \x03(\v2\x1e.seagull.detection.v1.GroupingR\x05group\"\x8c\x01\n" +
 	"\x05Stage\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x129\n" +
 	"\n" +
-	"event_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\teventTime\"\xe9\x01\n" +
+	"event_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\teventTime\x12\x19\n" +
+	"\bagent_id\x18\x04 \x01(\tR\aagentId\"\xe9\x01\n" +
 	"\vCorrelation\x123\n" +
 	"\x06stages\x18\x01 \x03(\v2\x1b.seagull.detection.v1.StageR\x06stages\x121\n" +
 	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12<\n" +
