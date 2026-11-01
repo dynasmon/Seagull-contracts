@@ -417,6 +417,11 @@ func (x *Kernel) GetArchitecture() string {
 // one vulnerability matching reads: `manager` is what decides which ecosystem a
 // name and a version are interpreted in, so it travels with them rather than
 // being inferred from the operating system later.
+//
+// `version` is the whole version the manager reports, epoch and release
+// included. The platform tells apart what a manager holds side by side by this
+// field alone: every kernel of one Rocky Linux release has the upstream version
+// `5.14.0`, and only its release says which of them is installed.
 type Package struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
