@@ -1,3 +1,4 @@
 /.local/
+/dist/
 
 .DS_Store
