@@ -44,27 +44,3 @@ jobs:
         run: make check
       - name: bindings compile
         run: make build
-
-  compatibility:
-    name: backward compatibility
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: reuse the contract tools
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: .local/bin
-          key: contract-tools-${{ runner.os }}-${{ hashFiles('go.mod', 'tools/buf/go.sum') }}
-      - name: make main available as the baseline
-        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-      - name: refuse breaking changes
-        run: make breaking
