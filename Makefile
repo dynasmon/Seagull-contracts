@@ -1,10 +1,12 @@
 SHELL := /bin/bash
 GO ?= go
 LOCAL_BIN := $(CURDIR)/.local/bin
+GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
+GOSEC := github.com/securego/gosec/v2/cmd/gosec@v2.30.0
 
 export PATH := $(LOCAL_BIN):$(PATH)
 
-.PHONY: help lint generate check breaking build mod-check clean verify
+.PHONY: help lint generate check breaking build mod-check vulncheck gosec clean verify
 
 help:
 	@echo "lint       check the contracts against the style rules"
@@ -13,6 +15,8 @@ help:
 	@echo "breaking   fail when a change breaks compatibility with main"
 	@echo "build      compile the generated bindings"
 	@echo "mod-check  verify the dependency graph and checksums"
+	@echo "vulncheck  refuse a known vulnerability in any package the bindings or the tools link"
+	@echo "gosec      refuse what the static security rules find"
 	@echo "verify     lint, mod-check, check and build"
 
 $(LOCAL_BIN)/buf $(LOCAL_BIN)/protoc-gen-go:
@@ -59,6 +63,13 @@ mod-check:
 	diff -u "$$tmp/go.mod" go.mod || status=1; \
 	diff -u "$$tmp/go.sum" go.sum || status=1; \
 	cp "$$tmp/go.mod" go.mod; cp "$$tmp/go.sum" go.sum; rm -rf "$$tmp"; exit "$$status"
+
+vulncheck:
+	$(GO) run $(GOVULNCHECK) -scan package ./...
+	cd tools/buf && $(GO) run $(GOVULNCHECK) -scan package github.com/bufbuild/buf/cmd/buf google.golang.org/protobuf/cmd/protoc-gen-go
+
+gosec:
+	$(GO) run $(GOSEC) -quiet -exclude-generated ./...
 
 clean:
 	rm -rf $(LOCAL_BIN)
