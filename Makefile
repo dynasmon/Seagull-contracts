@@ -2,12 +2,13 @@ SHELL := /bin/bash
 GO ?= go
 LOCAL_BIN := $(CURDIR)/.local/bin
 DIST ?= dist
+REPOSITORY ?= dynasmon/Seagull-contracts
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 GOSEC := github.com/securego/gosec/v2/cmd/gosec@v2.30.0
 
 export PATH := $(LOCAL_BIN):$(PATH)
 
-.PHONY: help lint generate check breaking build mod-check vulncheck gosec verify-tag clean verify
+.PHONY: help lint generate check breaking build mod-check vulncheck gosec verify-tag check-protection clean verify
 
 help:
 	@echo "lint       check the contracts against the style rules"
@@ -19,6 +20,7 @@ help:
 	@echo "vulncheck  refuse a known vulnerability in any package the bindings or the tools link"
 	@echo "gosec      refuse what the static security rules find"
 	@echo "verify-tag refuse TAG unless a signer main names signed it"
+	@echo "check-protection  compare the rules GitHub enforces on main with the ones declared here"
 	@echo "verify     lint, mod-check, check and build"
 
 $(LOCAL_BIN)/buf $(LOCAL_BIN)/protoc-gen-go:
@@ -79,6 +81,14 @@ verify-tag:
 	@git show origin/main:.github/allowed_signers > $(DIST)/allowed_signers
 	@git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=$(DIST)/allowed_signers -c gpg.minTrustLevel=fully \
 	  verify-tag "$(TAG)"
+
+check-protection:
+	@summary='{rules: (map(.type) | unique), checks: ([.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | sort)}'; \
+	declared="$$(jq -c ".rules | $$summary" .github/rulesets/main.json)"; \
+	enforced="$$(gh api repos/$(REPOSITORY)/rules/branches/main | jq -c "$$summary")"; \
+	if [ "$$declared" != "$$enforced" ]; then \
+	  echo "main is declared as $$declared"; echo "and enforced as   $$enforced"; exit 1; \
+	fi; echo "main is enforced as declared"
 
 clean:
 	rm -rf $(LOCAL_BIN)
