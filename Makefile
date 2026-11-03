@@ -3,6 +3,7 @@ GO ?= go
 LOCAL_BIN := $(CURDIR)/.local/bin
 DIST ?= dist
 REPOSITORY ?= dynasmon/Seagull-contracts
+BASELINE ?=
 GOVULNCHECK := golang.org/x/vuln/cmd/govulncheck@v1.9.0
 GOSEC := github.com/securego/gosec/v2/cmd/gosec@v2.30.0
 
@@ -14,7 +15,7 @@ help:
 	@echo "lint       check the contracts against the style rules"
 	@echo "generate   regenerate the Go bindings"
 	@echo "check      fail when the committed bindings are stale"
-	@echo "breaking   fail when a change breaks compatibility with main"
+	@echo "breaking   fail when a change breaks compatibility with main, or with BASELINE"
 	@echo "build      compile the generated bindings"
 	@echo "mod-check  verify the dependency graph and checksums"
 	@echo "vulncheck  refuse a known vulnerability in any package the bindings or the tools link"
@@ -46,15 +47,18 @@ check: generate
 # always be fetched and always be read. A local main is still accepted, for a
 # working copy that has one and no remote.
 breaking: $(LOCAL_BIN)/buf
-	@baseline=origin/main; \
-	git rev-parse --verify --quiet "$$baseline" >/dev/null || baseline=main; \
-	git rev-parse --verify --quiet "$$baseline" >/dev/null || \
-	  { echo "no baseline to compare against; run: git fetch origin main"; exit 1; }; \
-	if [ -z "$$(git ls-tree -r --name-only "$$baseline" -- proto)" ]; then \
+	@baseline="$(BASELINE)"; \
+	if [ -z "$$baseline" ]; then \
+	  baseline=origin/main; \
+	  git rev-parse --verify --quiet "$$baseline" >/dev/null || baseline=main; \
+	fi; \
+	commit="$$(git rev-parse --verify --quiet "$$baseline^{commit}")" || \
+	  { echo "$$baseline names no commit to compare against; run: git fetch origin main"; exit 1; }; \
+	if [ -z "$$(git ls-tree -r --name-only "$$commit" -- proto)" ]; then \
 	  echo "$$baseline carries no contracts yet; nothing to compare against"; \
 	else \
-	  echo "comparing against $$baseline"; \
-	  buf breaking --against ".git#ref=$$baseline"; \
+	  echo "comparing against $$baseline, $$commit"; \
+	  buf breaking --against ".git#ref=$$commit"; \
 	fi
 
 build:
