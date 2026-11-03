@@ -30,7 +30,16 @@ jobs:
         with:
           path: .local/bin
           key: contract-tools-${{ runner.os }}-${{ hashFiles('go.mod', 'tools/buf/go.sum') }}
-      - name: make main available as the baseline
-        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A pull request is checked out as the merge GitHub made of it, whose first
+      # parent is the main it was made from. main may have moved on since, and a
+      # field merged there meanwhile would read as one this change deleted.
       - name: refuse breaking changes
-        run: make breaking
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            make breaking BASELINE=HEAD^1
+          else
+            git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+            make breaking
+          fi
