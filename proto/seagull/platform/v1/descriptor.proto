@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package seagull.platform.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 message VersionRange {
@@ -9,10 +10,97 @@ message VersionRange {
   uint32 maximum = 2;
 }
 
+// What one listener of the platform serves the agents that reach it: the
+// protocol it speaks, the streams it admits and the limits it admits them
+// under, and what else it offers. A listener describes only what it serves
+// itself, from the settings it runs with, so nothing is described that is not
+// running there: the ingest gateway describes its streams, and the agent
+// listener of the control plane what it offers beside them.
+//
+// A descriptor tells an agent what it may send before it sends it, and never
+// decides admission: a batch is judged on its own against the same limits,
+// whether or not its agent read one, so an agent that never asks learns the same
+// from how its batches are answered.
+//
+// A listener answers with an entity tag naming what it describes, `server_time`
+// apart. A request that carries that tag in `If-None-Match` is answered `304`
+// with no body, so an agent asks when it starts and as often as it likes, and
+// reads a descriptor only when it changed.
 message Descriptor {
+  // The protocol of the batches the platform admits.
   uint32 protocol_version = 1;
   VersionRange supported_protocol = 2;
+
+  // The schema of the events the platform writes and the range it reads, as the
+  // event stream in `streams` states it too.
   uint32 event_schema_version = 3;
   VersionRange supported_event_schema = 4;
+
+  // When the listener answered.
   google.protobuf.Timestamp server_time = 5;
+
+  // Every stream this listener admits, each once. Empty from a listener that
+  // admits none.
+  repeated Stream streams = 6;
+
+  // The most bytes a request body may carry to this listener. Zero from a
+  // listener that admits no stream.
+  uint64 max_body_bytes = 7;
+
+  // What this listener offers beyond its streams, each once.
+  repeated Capability capabilities = 8;
+}
+
+// One stream of records an agent sends, and the limits a batch of it is
+// admitted under. A record beyond its own limits is refused for good, by its
+// position in the batch; a batch beyond the limits of a batch is answered as one
+// to send again in parts.
+message Stream {
+  // Where a batch is sent, as a method and a path, such as `POST /v1/events`.
+  string route = 1;
+
+  // The full names of the message a batch is and of the record it carries, such
+  // as `seagull.ingest.v1.EventBatch` and `seagull.event.v1.Event`.
+  string batch = 2;
+  string record = 3;
+
+  // The schema versions of the record this stream reads.
+  VersionRange supported_schema = 4;
+
+  // The most records a batch may carry.
+  uint32 max_records_per_batch = 5;
+
+  // The most bytes a record may encode to as an agent sends it. The platform
+  // stamps who sent a record and when it arrived before it weighs it against
+  // its own ceiling, and this already leaves room for that.
+  uint64 max_record_bytes = 6;
+
+  // How old a record may be when it arrives, and how far ahead of the
+  // platform's clock, by the instant the record itself says it was made.
+  google.protobuf.Duration max_age = 7;
+  google.protobuf.Duration max_clock_skew = 8;
+
+  // The most items a record, and a batch, may carry, for a stream whose records
+  // hold items; zero for one whose records hold none.
+  uint32 max_items_per_record = 9;
+  uint32 max_items_per_batch = 10;
+}
+
+// Something a listener offers an agent beyond its streams. `name` is one of the
+// names below and nothing else, and an agent ignores a name it does not know, so
+// a newer platform can offer more to an older agent:
+//
+// - `renewal`: a new certificate for the one the agent presents.
+// - `policy`: the newest signed policy of the agent's tenant that names it.
+// - `update`: the release the platform asks the agent to run, with the roots and
+//   the catalog it is verified under.
+message Capability {
+  string name = 1;
+
+  // Where it is asked for, as a method and a path, such as
+  // `GET /v1/agents/policy`.
+  string route = 2;
+
+  // The schema versions of what it hands an agent or takes from one.
+  VersionRange supported_schema = 3;
 }
