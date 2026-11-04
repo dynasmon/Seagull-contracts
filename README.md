@@ -44,8 +44,9 @@ import (
 go get github.com/dynasmon/Seagull-contracts@v0.1.0
 ```
 
-While the repository is private, consumers need `GOPRIVATE=github.com/dynasmon/*`
-and credentials that can read it.
+The repository is public, and a release is fetched from the Go module proxy like
+any other module, with no credentials. A published tag never moves: the proxy keeps
+what it first served, so a mistake is fixed by the next release.
 
 ## The event
 
