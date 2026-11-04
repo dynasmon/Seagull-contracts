@@ -358,6 +358,26 @@ attempt that did not complete, so the freshness of intelligence never looks
 better than it is; `newest_listed` is how current the feed itself is. `Record`
 carries either, so the log both travel on has one decode path.
 
+## The descriptor
+
+A `Descriptor` is what one listener of the platform serves the agents that reach
+it, at `GET /v1/descriptor`, and nothing else: the ingest gateway lists the
+streams it admits, each with the record it carries, the schema versions it reads
+and the limits it admits a batch and a record under, and the agent listener of
+the control plane lists what it offers beside them, such as `renewal`, `policy`
+and `update`. A listener describes what it runs with, so a capability the
+platform does not serve is never named, and the limits are the ones its batches
+are judged against.
+
+An agent learns from it what it may send before it sends anything, and still
+reads every answer: a descriptor never decides admission, and a batch is judged
+on its own whether or not its agent asked. `max_record_bytes` leaves room for
+what the platform stamps on a record before weighing it, so a record an agent
+keeps within it is never refused for its size. Names are strings an agent
+ignores when it does not know them, so a newer platform can describe more to an
+older agent. Every answer carries an entity tag; asked again with it in
+`If-None-Match`, a listener whose descriptor did not change answers `304`.
+
 ## The acknowledgement
 
 `BatchAck` is the reason an agent can let go of data. It may drop its local copy
