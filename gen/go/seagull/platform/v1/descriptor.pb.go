@@ -9,6 +9,7 @@ package platformv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -74,15 +75,43 @@ func (x *VersionRange) GetMaximum() uint32 {
 	return 0
 }
 
+// What one listener of the platform serves the agents that reach it: the
+// protocol it speaks, the streams it admits and the limits it admits them
+// under, and what else it offers. A listener describes only what it serves
+// itself, from the settings it runs with, so nothing is described that is not
+// running there: the ingest gateway describes its streams, and the agent
+// listener of the control plane what it offers beside them.
+//
+// A descriptor tells an agent what it may send before it sends it, and never
+// decides admission: a batch is judged on its own against the same limits,
+// whether or not its agent read one, so an agent that never asks learns the same
+// from how its batches are answered.
+//
+// A listener answers with an entity tag naming what it describes, `server_time`
+// apart. A request that carries that tag in `If-None-Match` is answered `304`
+// with no body, so an agent asks when it starts and as often as it likes, and
+// reads a descriptor only when it changed.
 type Descriptor struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	ProtocolVersion      uint32                 `protobuf:"varint,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
-	SupportedProtocol    *VersionRange          `protobuf:"bytes,2,opt,name=supported_protocol,json=supportedProtocol,proto3" json:"supported_protocol,omitempty"`
-	EventSchemaVersion   uint32                 `protobuf:"varint,3,opt,name=event_schema_version,json=eventSchemaVersion,proto3" json:"event_schema_version,omitempty"`
-	SupportedEventSchema *VersionRange          `protobuf:"bytes,4,opt,name=supported_event_schema,json=supportedEventSchema,proto3" json:"supported_event_schema,omitempty"`
-	ServerTime           *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=server_time,json=serverTime,proto3" json:"server_time,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The protocol of the batches the platform admits.
+	ProtocolVersion   uint32        `protobuf:"varint,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	SupportedProtocol *VersionRange `protobuf:"bytes,2,opt,name=supported_protocol,json=supportedProtocol,proto3" json:"supported_protocol,omitempty"`
+	// The schema of the events the platform writes and the range it reads, as the
+	// event stream in `streams` states it too.
+	EventSchemaVersion   uint32        `protobuf:"varint,3,opt,name=event_schema_version,json=eventSchemaVersion,proto3" json:"event_schema_version,omitempty"`
+	SupportedEventSchema *VersionRange `protobuf:"bytes,4,opt,name=supported_event_schema,json=supportedEventSchema,proto3" json:"supported_event_schema,omitempty"`
+	// When the listener answered.
+	ServerTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=server_time,json=serverTime,proto3" json:"server_time,omitempty"`
+	// Every stream this listener admits, each once. Empty from a listener that
+	// admits none.
+	Streams []*Stream `protobuf:"bytes,6,rep,name=streams,proto3" json:"streams,omitempty"`
+	// The most bytes a request body may carry to this listener. Zero from a
+	// listener that admits no stream.
+	MaxBodyBytes uint64 `protobuf:"varint,7,opt,name=max_body_bytes,json=maxBodyBytes,proto3" json:"max_body_bytes,omitempty"`
+	// What this listener offers beyond its streams, each once.
+	Capabilities  []*Capability `protobuf:"bytes,8,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Descriptor) Reset() {
@@ -150,14 +179,238 @@ func (x *Descriptor) GetServerTime() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Descriptor) GetStreams() []*Stream {
+	if x != nil {
+		return x.Streams
+	}
+	return nil
+}
+
+func (x *Descriptor) GetMaxBodyBytes() uint64 {
+	if x != nil {
+		return x.MaxBodyBytes
+	}
+	return 0
+}
+
+func (x *Descriptor) GetCapabilities() []*Capability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+// One stream of records an agent sends, and the limits a batch of it is
+// admitted under. A record beyond its own limits is refused for good, by its
+// position in the batch; a batch beyond the limits of a batch is answered as one
+// to send again in parts.
+type Stream struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Where a batch is sent, as a method and a path, such as `POST /v1/events`.
+	Route string `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
+	// The full names of the message a batch is and of the record it carries, such
+	// as `seagull.ingest.v1.EventBatch` and `seagull.event.v1.Event`.
+	Batch  string `protobuf:"bytes,2,opt,name=batch,proto3" json:"batch,omitempty"`
+	Record string `protobuf:"bytes,3,opt,name=record,proto3" json:"record,omitempty"`
+	// The schema versions of the record this stream reads.
+	SupportedSchema *VersionRange `protobuf:"bytes,4,opt,name=supported_schema,json=supportedSchema,proto3" json:"supported_schema,omitempty"`
+	// The most records a batch may carry.
+	MaxRecordsPerBatch uint32 `protobuf:"varint,5,opt,name=max_records_per_batch,json=maxRecordsPerBatch,proto3" json:"max_records_per_batch,omitempty"`
+	// The most bytes a record may encode to as an agent sends it. The platform
+	// stamps who sent a record and when it arrived before it weighs it against
+	// its own ceiling, and this already leaves room for that.
+	MaxRecordBytes uint64 `protobuf:"varint,6,opt,name=max_record_bytes,json=maxRecordBytes,proto3" json:"max_record_bytes,omitempty"`
+	// How old a record may be when it arrives, and how far ahead of the
+	// platform's clock, by the instant the record itself says it was made.
+	MaxAge       *durationpb.Duration `protobuf:"bytes,7,opt,name=max_age,json=maxAge,proto3" json:"max_age,omitempty"`
+	MaxClockSkew *durationpb.Duration `protobuf:"bytes,8,opt,name=max_clock_skew,json=maxClockSkew,proto3" json:"max_clock_skew,omitempty"`
+	// The most items a record, and a batch, may carry, for a stream whose records
+	// hold items; zero for one whose records hold none.
+	MaxItemsPerRecord uint32 `protobuf:"varint,9,opt,name=max_items_per_record,json=maxItemsPerRecord,proto3" json:"max_items_per_record,omitempty"`
+	MaxItemsPerBatch  uint32 `protobuf:"varint,10,opt,name=max_items_per_batch,json=maxItemsPerBatch,proto3" json:"max_items_per_batch,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Stream) Reset() {
+	*x = Stream{}
+	mi := &file_seagull_platform_v1_descriptor_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Stream) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Stream) ProtoMessage() {}
+
+func (x *Stream) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_platform_v1_descriptor_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Stream.ProtoReflect.Descriptor instead.
+func (*Stream) Descriptor() ([]byte, []int) {
+	return file_seagull_platform_v1_descriptor_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Stream) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *Stream) GetBatch() string {
+	if x != nil {
+		return x.Batch
+	}
+	return ""
+}
+
+func (x *Stream) GetRecord() string {
+	if x != nil {
+		return x.Record
+	}
+	return ""
+}
+
+func (x *Stream) GetSupportedSchema() *VersionRange {
+	if x != nil {
+		return x.SupportedSchema
+	}
+	return nil
+}
+
+func (x *Stream) GetMaxRecordsPerBatch() uint32 {
+	if x != nil {
+		return x.MaxRecordsPerBatch
+	}
+	return 0
+}
+
+func (x *Stream) GetMaxRecordBytes() uint64 {
+	if x != nil {
+		return x.MaxRecordBytes
+	}
+	return 0
+}
+
+func (x *Stream) GetMaxAge() *durationpb.Duration {
+	if x != nil {
+		return x.MaxAge
+	}
+	return nil
+}
+
+func (x *Stream) GetMaxClockSkew() *durationpb.Duration {
+	if x != nil {
+		return x.MaxClockSkew
+	}
+	return nil
+}
+
+func (x *Stream) GetMaxItemsPerRecord() uint32 {
+	if x != nil {
+		return x.MaxItemsPerRecord
+	}
+	return 0
+}
+
+func (x *Stream) GetMaxItemsPerBatch() uint32 {
+	if x != nil {
+		return x.MaxItemsPerBatch
+	}
+	return 0
+}
+
+// Something a listener offers an agent beyond its streams. `name` is one of the
+// names below and nothing else, and an agent ignores a name it does not know, so
+// a newer platform can offer more to an older agent:
+//
+//   - `renewal`: a new certificate for the one the agent presents.
+//   - `policy`: the newest signed policy of the agent's tenant that names it.
+//   - `update`: the release the platform asks the agent to run, with the roots and
+//     the catalog it is verified under.
+type Capability struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Where it is asked for, as a method and a path, such as
+	// `GET /v1/agents/policy`.
+	Route string `protobuf:"bytes,2,opt,name=route,proto3" json:"route,omitempty"`
+	// The schema versions of what it hands an agent or takes from one.
+	SupportedSchema *VersionRange `protobuf:"bytes,3,opt,name=supported_schema,json=supportedSchema,proto3" json:"supported_schema,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Capability) Reset() {
+	*x = Capability{}
+	mi := &file_seagull_platform_v1_descriptor_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Capability) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Capability) ProtoMessage() {}
+
+func (x *Capability) ProtoReflect() protoreflect.Message {
+	mi := &file_seagull_platform_v1_descriptor_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Capability.ProtoReflect.Descriptor instead.
+func (*Capability) Descriptor() ([]byte, []int) {
+	return file_seagull_platform_v1_descriptor_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Capability) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Capability) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *Capability) GetSupportedSchema() *VersionRange {
+	if x != nil {
+		return x.SupportedSchema
+	}
+	return nil
+}
+
 var File_seagull_platform_v1_descriptor_proto protoreflect.FileDescriptor
 
 const file_seagull_platform_v1_descriptor_proto_rawDesc = "" +
 	"\n" +
-	"$seagull/platform/v1/descriptor.proto\x12\x13seagull.platform.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"B\n" +
+	"$seagull/platform/v1/descriptor.proto\x12\x13seagull.platform.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"B\n" +
 	"\fVersionRange\x12\x18\n" +
 	"\aminimum\x18\x01 \x01(\rR\aminimum\x12\x18\n" +
-	"\amaximum\x18\x02 \x01(\rR\amaximum\"\xd1\x02\n" +
+	"\amaximum\x18\x02 \x01(\rR\amaximum\"\xf3\x03\n" +
 	"\n" +
 	"Descriptor\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12P\n" +
@@ -165,7 +418,27 @@ const file_seagull_platform_v1_descriptor_proto_rawDesc = "" +
 	"\x14event_schema_version\x18\x03 \x01(\rR\x12eventSchemaVersion\x12W\n" +
 	"\x16supported_event_schema\x18\x04 \x01(\v2!.seagull.platform.v1.VersionRangeR\x14supportedEventSchema\x12;\n" +
 	"\vserver_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"serverTimeB\xe5\x01\n" +
+	"serverTime\x125\n" +
+	"\astreams\x18\x06 \x03(\v2\x1b.seagull.platform.v1.StreamR\astreams\x12$\n" +
+	"\x0emax_body_bytes\x18\a \x01(\x04R\fmaxBodyBytes\x12C\n" +
+	"\fcapabilities\x18\b \x03(\v2\x1f.seagull.platform.v1.CapabilityR\fcapabilities\"\xcc\x03\n" +
+	"\x06Stream\x12\x14\n" +
+	"\x05route\x18\x01 \x01(\tR\x05route\x12\x14\n" +
+	"\x05batch\x18\x02 \x01(\tR\x05batch\x12\x16\n" +
+	"\x06record\x18\x03 \x01(\tR\x06record\x12L\n" +
+	"\x10supported_schema\x18\x04 \x01(\v2!.seagull.platform.v1.VersionRangeR\x0fsupportedSchema\x121\n" +
+	"\x15max_records_per_batch\x18\x05 \x01(\rR\x12maxRecordsPerBatch\x12(\n" +
+	"\x10max_record_bytes\x18\x06 \x01(\x04R\x0emaxRecordBytes\x122\n" +
+	"\amax_age\x18\a \x01(\v2\x19.google.protobuf.DurationR\x06maxAge\x12?\n" +
+	"\x0emax_clock_skew\x18\b \x01(\v2\x19.google.protobuf.DurationR\fmaxClockSkew\x12/\n" +
+	"\x14max_items_per_record\x18\t \x01(\rR\x11maxItemsPerRecord\x12-\n" +
+	"\x13max_items_per_batch\x18\n" +
+	" \x01(\rR\x10maxItemsPerBatch\"\x84\x01\n" +
+	"\n" +
+	"Capability\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05route\x18\x02 \x01(\tR\x05route\x12L\n" +
+	"\x10supported_schema\x18\x03 \x01(\v2!.seagull.platform.v1.VersionRangeR\x0fsupportedSchemaB\xe5\x01\n" +
 	"\x17com.seagull.platform.v1B\x0fDescriptorProtoP\x01ZKgithub.com/dynasmon/Seagull-contracts/gen/go/seagull/platform/v1;platformv1\xa2\x02\x03SPX\xaa\x02\x13Seagull.Platform.V1\xca\x02\x13Seagull\\Platform\\V1\xe2\x02\x1fSeagull\\Platform\\V1\\GPBMetadata\xea\x02\x15Seagull::Platform::V1b\x06proto3"
 
 var (
@@ -180,21 +453,30 @@ func file_seagull_platform_v1_descriptor_proto_rawDescGZIP() []byte {
 	return file_seagull_platform_v1_descriptor_proto_rawDescData
 }
 
-var file_seagull_platform_v1_descriptor_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_seagull_platform_v1_descriptor_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_seagull_platform_v1_descriptor_proto_goTypes = []any{
 	(*VersionRange)(nil),          // 0: seagull.platform.v1.VersionRange
 	(*Descriptor)(nil),            // 1: seagull.platform.v1.Descriptor
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*Stream)(nil),                // 2: seagull.platform.v1.Stream
+	(*Capability)(nil),            // 3: seagull.platform.v1.Capability
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 5: google.protobuf.Duration
 }
 var file_seagull_platform_v1_descriptor_proto_depIdxs = []int32{
 	0, // 0: seagull.platform.v1.Descriptor.supported_protocol:type_name -> seagull.platform.v1.VersionRange
 	0, // 1: seagull.platform.v1.Descriptor.supported_event_schema:type_name -> seagull.platform.v1.VersionRange
-	2, // 2: seagull.platform.v1.Descriptor.server_time:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 2: seagull.platform.v1.Descriptor.server_time:type_name -> google.protobuf.Timestamp
+	2, // 3: seagull.platform.v1.Descriptor.streams:type_name -> seagull.platform.v1.Stream
+	3, // 4: seagull.platform.v1.Descriptor.capabilities:type_name -> seagull.platform.v1.Capability
+	0, // 5: seagull.platform.v1.Stream.supported_schema:type_name -> seagull.platform.v1.VersionRange
+	5, // 6: seagull.platform.v1.Stream.max_age:type_name -> google.protobuf.Duration
+	5, // 7: seagull.platform.v1.Stream.max_clock_skew:type_name -> google.protobuf.Duration
+	0, // 8: seagull.platform.v1.Capability.supported_schema:type_name -> seagull.platform.v1.VersionRange
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_seagull_platform_v1_descriptor_proto_init() }
@@ -208,7 +490,7 @@ func file_seagull_platform_v1_descriptor_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_platform_v1_descriptor_proto_rawDesc), len(file_seagull_platform_v1_descriptor_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
