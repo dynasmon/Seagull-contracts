@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package seagull.inventory.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/event/v1/event.proto";
+import "seagull/inventory/v1/inventory.proto";
+
+// The newest full enumeration of one kind on one asset: the line absence is
+// measured against, and how old the answer for that kind is. `items` is how
+// many the enumeration named.
+message Scan {
+  Kind kind = 1;
+  google.protobuf.Timestamp scanned_at = 2;
+  string record_id = 3;
+  uint32 items = 4;
+}
+
+// An asset as its inventory knows it: who it is, the host as the newest record
+// about it named it, and how old each kind of what it has is. A kind never
+// enumerated in full has no scan, and nothing of it is current.
+message Asset {
+  string tenant_id = 1;
+  string agent_id = 2;
+  seagull.event.v1.Host host = 3;
+  repeated Scan scans = 4;
+
+  // When the collector last looked at anything on it.
+  google.protobuf.Timestamp last_seen = 5;
+}
+
+// Asking which assets there are. Empty `agent_ids` asks about every asset the
+// caller may see; `scanned_before` keeps only those with a kind last enumerated
+// before it, which is how a stale inventory is found.
+message AssetQuery {
+  repeated string agent_ids = 1;
+  google.protobuf.Timestamp scanned_before = 2;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 3;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged: it is the server's own token and is not composed by a
+  // caller.
+  string cursor = 4;
+}
+
+message AssetPage {
+  repeated Asset assets = 1;
+  string next_cursor = 2;
+}
+
+// One item an asset has or had: the item itself, when it was last seen and the
+// record that named it then, and whether the newest full enumeration of its
+// kind still names it. One instance is one entry, however many stored rows say
+// the same thing about it.
+message HeldItem {
+  string item_id = 1;
+  Kind kind = 2;
+  Item item = 3;
+  google.protobuf.Timestamp last_seen = 4;
+  string record_id = 5;
+  bool current = 6;
+}
+
+// Asking what one asset has of one kind: what it holds now, as of the scan the
+// page names. With a name — a package's, a service's, an account's — every
+// item of that name the asset was ever seen with is answered, current or not,
+// newest first, which is a package's history of versions.
+message ItemQuery {
+  string agent_id = 1;
+  Kind kind = 2;
+  string name = 3;
+
+  uint32 limit = 4;
+  string cursor = 5;
+}
+
+message ItemPage {
+  repeated HeldItem items = 1;
+  Scan scan = 2;
+  string next_cursor = 3;
+}

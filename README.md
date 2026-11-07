@@ -20,8 +20,8 @@ proto/seagull/ruleset/v1/       the rules a platform runs, and which set of them
 proto/seagull/alert/v1/         what an operator does about what the rules found
 proto/seagull/incident/v1/      the higher-order story a correlation tells
 proto/seagull/agent/v1/         the machines the platform admits telemetry from, and what they report
-proto/seagull/inventory/v1/     what an asset was observed to have
-proto/seagull/vulnerability/v1/ what a source says is wrong with software
+proto/seagull/inventory/v1/     what an asset was observed to have, and how a person asks about it
+proto/seagull/vulnerability/v1/ what a source says is wrong with software, and what that means for an asset
 proto/seagull/policy/v1/        how an agent is told to run, signed off the platform
 proto/seagull/update/v1/        which releases an agent may install, signed off the platform
 proto/seagull/assessment/v1/    the checks a policy asks an agent to run, and what it found
@@ -358,6 +358,53 @@ platform last held everything the feed listed and is carried forward by an
 attempt that did not complete, so the freshness of intelligence never looks
 better than it is; `newest_listed` is how current the feed itself is. `Record`
 carries either, so the log both travel on has one decode path.
+
+## The vulnerability finding
+
+A `Finding` is what the platform decided about one vulnerability in one package
+an asset has. It is named by the tenant, the agent, the inventory item and the
+vulnerability — a CVE where the advisories name one — and never by an advisory,
+so one CVE told by a distribution's advisory, its long-term support advisory and
+the CVE's own record is one finding, judged by all of them. Each record is one
+decision and never changes: where a finding stands is its newest decision, and
+the decisions in order are its history, a fix and a reintroduction included.
+Decisions are ordered by how new the inventory they were made from was, then
+the intelligence, then when the platform read them, so deciding again from the
+same inputs lands on the same name and the same place in that order.
+
+`FindingState` says where it stands: open while `AFFECTED` or `REINTRODUCED`,
+closed as `FIXED`, `NOT_AFFECTED` or `REMOVED` only on what the platform read,
+and `CANNOT_ASSESS` with the reason when it could not tell, which closes nothing.
+Every decision cites the advisory versions it was judged by, the inventory record
+and scan it was made from and how fresh the feed was; `Rating` is one of the
+severities the advisories carry, with where it came from and the version of the
+rules that chose it, never a computed score.
+
+An `Assessment` says what one evaluation covered: a whole asset when its
+inventory changed, or the packages an advisory names when the advisory changed.
+Only a whole assessment made on fresh intelligence speaks about what it did not
+decide, so a reader holds an asset's open findings to its newest one, and one
+made on stale intelligence closes nothing. `FindingRecord` carries either, under
+the agent they are about.
+
+A `Disposition` is a person's decision about a vulnerability — ignored, or a
+risk accepted — read beside the findings it covers and never folded into them.
+It has a reason, an actor and an expiry, ends early only by being withdrawn, and
+neither changes nor removes a finding.
+
+## Reading inventory and findings
+
+What a person asks of an asset is answered from the read plane, within the
+tenants the policy grants them for `RESOURCE_INVENTORY` or
+`RESOURCE_VULNERABILITIES`. `AssetQuery` lists assets with the newest full scan
+of each kind, which is how old each part of the answer is; `ItemQuery` lists what
+one asset has of one kind now, or with a name every item of that name it was ever
+seen with, which is a package's history of versions. `AdvisoryQuery` reads
+intelligence by the id a source gave an advisory, every version of it, or by a
+package as its ecosystem's advisories name it; `FindingQuery` lists findings as
+they stand now, `FindingHistoryQuery` one finding's decisions, and
+`AssessmentQuery` how each asset was last assessed. Pages and cursors work as the
+hunt's do: the cursor is the server's own token, passed back unchanged.
 
 ## The descriptor
 
