@@ -26,40 +26,46 @@ const (
 type Resource int32
 
 const (
-	Resource_RESOURCE_UNSPECIFIED Resource = 0
-	Resource_RESOURCE_EVENTS      Resource = 1
-	Resource_RESOURCE_DETECTIONS  Resource = 2
-	Resource_RESOURCE_RULESETS    Resource = 3
-	Resource_RESOURCE_ALERTS      Resource = 4
-	Resource_RESOURCE_AGENTS      Resource = 5
-	Resource_RESOURCE_POLICIES    Resource = 6
-	Resource_RESOURCE_SESSIONS    Resource = 7
-	Resource_RESOURCE_INCIDENTS   Resource = 8
+	Resource_RESOURCE_UNSPECIFIED     Resource = 0
+	Resource_RESOURCE_EVENTS          Resource = 1
+	Resource_RESOURCE_DETECTIONS      Resource = 2
+	Resource_RESOURCE_RULESETS        Resource = 3
+	Resource_RESOURCE_ALERTS          Resource = 4
+	Resource_RESOURCE_AGENTS          Resource = 5
+	Resource_RESOURCE_POLICIES        Resource = 6
+	Resource_RESOURCE_SESSIONS        Resource = 7
+	Resource_RESOURCE_INCIDENTS       Resource = 8
+	Resource_RESOURCE_INVENTORY       Resource = 9
+	Resource_RESOURCE_VULNERABILITIES Resource = 10
 )
 
 // Enum value maps for Resource.
 var (
 	Resource_name = map[int32]string{
-		0: "RESOURCE_UNSPECIFIED",
-		1: "RESOURCE_EVENTS",
-		2: "RESOURCE_DETECTIONS",
-		3: "RESOURCE_RULESETS",
-		4: "RESOURCE_ALERTS",
-		5: "RESOURCE_AGENTS",
-		6: "RESOURCE_POLICIES",
-		7: "RESOURCE_SESSIONS",
-		8: "RESOURCE_INCIDENTS",
+		0:  "RESOURCE_UNSPECIFIED",
+		1:  "RESOURCE_EVENTS",
+		2:  "RESOURCE_DETECTIONS",
+		3:  "RESOURCE_RULESETS",
+		4:  "RESOURCE_ALERTS",
+		5:  "RESOURCE_AGENTS",
+		6:  "RESOURCE_POLICIES",
+		7:  "RESOURCE_SESSIONS",
+		8:  "RESOURCE_INCIDENTS",
+		9:  "RESOURCE_INVENTORY",
+		10: "RESOURCE_VULNERABILITIES",
 	}
 	Resource_value = map[string]int32{
-		"RESOURCE_UNSPECIFIED": 0,
-		"RESOURCE_EVENTS":      1,
-		"RESOURCE_DETECTIONS":  2,
-		"RESOURCE_RULESETS":    3,
-		"RESOURCE_ALERTS":      4,
-		"RESOURCE_AGENTS":      5,
-		"RESOURCE_POLICIES":    6,
-		"RESOURCE_SESSIONS":    7,
-		"RESOURCE_INCIDENTS":   8,
+		"RESOURCE_UNSPECIFIED":     0,
+		"RESOURCE_EVENTS":          1,
+		"RESOURCE_DETECTIONS":      2,
+		"RESOURCE_RULESETS":        3,
+		"RESOURCE_ALERTS":          4,
+		"RESOURCE_AGENTS":          5,
+		"RESOURCE_POLICIES":        6,
+		"RESOURCE_SESSIONS":        7,
+		"RESOURCE_INCIDENTS":       8,
+		"RESOURCE_INVENTORY":       9,
+		"RESOURCE_VULNERABILITIES": 10,
 	}
 )
 
@@ -652,7 +658,7 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\arevoked\x18\x01 \x01(\rR\arevoked\"5\n" +
 	"\aRefusal\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail*\xd9\x01\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail*\x8f\x02\n" +
 	"\bResource\x12\x18\n" +
 	"\x14RESOURCE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fRESOURCE_EVENTS\x10\x01\x12\x17\n" +
@@ -662,7 +668,10 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\x0fRESOURCE_AGENTS\x10\x05\x12\x15\n" +
 	"\x11RESOURCE_POLICIES\x10\x06\x12\x15\n" +
 	"\x11RESOURCE_SESSIONS\x10\a\x12\x16\n" +
-	"\x12RESOURCE_INCIDENTS\x10\b*V\n" +
+	"\x12RESOURCE_INCIDENTS\x10\b\x12\x16\n" +
+	"\x12RESOURCE_INVENTORY\x10\t\x12\x1c\n" +
+	"\x18RESOURCE_VULNERABILITIES\x10\n" +
+	"*V\n" +
 	"\x06Action\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vACTION_READ\x10\x01\x12\x10\n" +
