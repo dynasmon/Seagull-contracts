@@ -406,6 +406,21 @@ they stand now, `FindingHistoryQuery` one finding's decisions, and
 `AssessmentQuery` how each asset was last assessed. Pages and cursors work as the
 hunt's do: the cursor is the server's own token, passed back unchanged.
 
+## The grant
+
+A `Grant` is what a session tells a client its caller holds, so a user interface
+can show it; the server decides every request against its own policy whatever
+the client believes. Its `scope` says what the grant reaches. `SCOPE_PLATFORM`
+holds what every tenant shares: publishing and activating a ruleset, reading and
+ending the sessions of another subject, and publishing what an agent may
+install, which is `RESOURCE_RELEASES`. `SCOPE_TENANT` holds none of those,
+whatever its roles say elsewhere. Reaching the platform is never reaching every
+tenant: under either scope a grant acts on the records of the tenants it lists
+and of no other, and a grant of the platform may list none.
+
+`SCOPE_UNSPECIFIED` is an answer from a server that tells no scope. A client
+reads it as not told, and never as one of the two.
+
 ## The descriptor
 
 A `Descriptor` is what one listener of the platform serves the agents that reach

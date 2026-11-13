@@ -37,6 +37,7 @@ const (
 	Resource_RESOURCE_INCIDENTS       Resource = 8
 	Resource_RESOURCE_INVENTORY       Resource = 9
 	Resource_RESOURCE_VULNERABILITIES Resource = 10
+	Resource_RESOURCE_RELEASES        Resource = 11
 )
 
 // Enum value maps for Resource.
@@ -53,6 +54,7 @@ var (
 		8:  "RESOURCE_INCIDENTS",
 		9:  "RESOURCE_INVENTORY",
 		10: "RESOURCE_VULNERABILITIES",
+		11: "RESOURCE_RELEASES",
 	}
 	Resource_value = map[string]int32{
 		"RESOURCE_UNSPECIFIED":     0,
@@ -66,6 +68,7 @@ var (
 		"RESOURCE_INCIDENTS":       8,
 		"RESOURCE_INVENTORY":       9,
 		"RESOURCE_VULNERABILITIES": 10,
+		"RESOURCE_RELEASES":        11,
 	}
 )
 
@@ -148,6 +151,61 @@ func (Action) EnumDescriptor() ([]byte, []int) {
 	return file_seagull_control_v1_access_proto_rawDescGZIP(), []int{1}
 }
 
+// What a grant reaches. The platform's is what every tenant shares, such as the
+// ruleset, the sessions and the releases, and is held only by a grant of the
+// platform. Reaching the platform is never reaching every tenant: whichever
+// scope it has, a grant acts on the records of the tenants it lists and of no
+// other. An answer that carries no scope comes from a server that tells none,
+// and is not to be read as either.
+type Scope int32
+
+const (
+	Scope_SCOPE_UNSPECIFIED Scope = 0
+	Scope_SCOPE_PLATFORM    Scope = 1
+	Scope_SCOPE_TENANT      Scope = 2
+)
+
+// Enum value maps for Scope.
+var (
+	Scope_name = map[int32]string{
+		0: "SCOPE_UNSPECIFIED",
+		1: "SCOPE_PLATFORM",
+		2: "SCOPE_TENANT",
+	}
+	Scope_value = map[string]int32{
+		"SCOPE_UNSPECIFIED": 0,
+		"SCOPE_PLATFORM":    1,
+		"SCOPE_TENANT":      2,
+	}
+)
+
+func (x Scope) Enum() *Scope {
+	p := new(Scope)
+	*p = x
+	return p
+}
+
+func (x Scope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Scope) Descriptor() protoreflect.EnumDescriptor {
+	return file_seagull_control_v1_access_proto_enumTypes[2].Descriptor()
+}
+
+func (Scope) Type() protoreflect.EnumType {
+	return &file_seagull_control_v1_access_proto_enumTypes[2]
+}
+
+func (x Scope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Scope.Descriptor instead.
+func (Scope) EnumDescriptor() ([]byte, []int) {
+	return file_seagull_control_v1_access_proto_rawDescGZIP(), []int{2}
+}
+
 type Permission struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Resource      Resource               `protobuf:"varint,1,opt,name=resource,proto3,enum=seagull.control.v1.Resource" json:"resource,omitempty"`
@@ -208,6 +266,7 @@ type Grant struct {
 	Tenants       []string               `protobuf:"bytes,2,rep,name=tenants,proto3" json:"tenants,omitempty"`
 	Roles         []string               `protobuf:"bytes,3,rep,name=roles,proto3" json:"roles,omitempty"`
 	Permissions   []*Permission          `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	Scope         Scope                  `protobuf:"varint,5,opt,name=scope,proto3,enum=seagull.control.v1.Scope" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -268,6 +327,13 @@ func (x *Grant) GetPermissions() []*Permission {
 		return x.Permissions
 	}
 	return nil
+}
+
+func (x *Grant) GetScope() Scope {
+	if x != nil {
+		return x.Scope
+	}
+	return Scope_SCOPE_UNSPECIFIED
 }
 
 type Session struct {
@@ -632,12 +698,13 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\n" +
 	"Permission\x128\n" +
 	"\bresource\x18\x01 \x01(\x0e2\x1c.seagull.control.v1.ResourceR\bresource\x122\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x1a.seagull.control.v1.ActionR\x06action\"\x93\x01\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x1a.seagull.control.v1.ActionR\x06action\"\xc4\x01\n" +
 	"\x05Grant\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x18\n" +
 	"\atenants\x18\x02 \x03(\tR\atenants\x12\x14\n" +
 	"\x05roles\x18\x03 \x03(\tR\x05roles\x12@\n" +
-	"\vpermissions\x18\x04 \x03(\v2\x1e.seagull.control.v1.PermissionR\vpermissions\"\xbe\x01\n" +
+	"\vpermissions\x18\x04 \x03(\v2\x1e.seagull.control.v1.PermissionR\vpermissions\x12/\n" +
+	"\x05scope\x18\x05 \x01(\x0e2\x19.seagull.control.v1.ScopeR\x05scope\"\xbe\x01\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x127\n" +
 	"\tissued_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x129\n" +
@@ -658,7 +725,7 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\arevoked\x18\x01 \x01(\rR\arevoked\"5\n" +
 	"\aRefusal\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail*\x8f\x02\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail*\xa6\x02\n" +
 	"\bResource\x12\x18\n" +
 	"\x14RESOURCE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fRESOURCE_EVENTS\x10\x01\x12\x17\n" +
@@ -671,12 +738,17 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\x12RESOURCE_INCIDENTS\x10\b\x12\x16\n" +
 	"\x12RESOURCE_INVENTORY\x10\t\x12\x1c\n" +
 	"\x18RESOURCE_VULNERABILITIES\x10\n" +
-	"*V\n" +
+	"\x12\x15\n" +
+	"\x11RESOURCE_RELEASES\x10\v*V\n" +
 	"\x06Action\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vACTION_READ\x10\x01\x12\x10\n" +
 	"\fACTION_WRITE\x10\x02\x12\x11\n" +
-	"\rACTION_DELETE\x10\x03B\xda\x01\n" +
+	"\rACTION_DELETE\x10\x03*D\n" +
+	"\x05Scope\x12\x15\n" +
+	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eSCOPE_PLATFORM\x10\x01\x12\x10\n" +
+	"\fSCOPE_TENANT\x10\x02B\xda\x01\n" +
 	"\x16com.seagull.control.v1B\vAccessProtoP\x01ZIgithub.com/dynasmon/Seagull-contracts/gen/go/seagull/control/v1;controlv1\xa2\x02\x03SCX\xaa\x02\x12Seagull.Control.V1\xca\x02\x12Seagull\\Control\\V1\xe2\x02\x1eSeagull\\Control\\V1\\GPBMetadata\xea\x02\x14Seagull::Control::V1b\x06proto3"
 
 var (
@@ -691,38 +763,40 @@ func file_seagull_control_v1_access_proto_rawDescGZIP() []byte {
 	return file_seagull_control_v1_access_proto_rawDescData
 }
 
-var file_seagull_control_v1_access_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_seagull_control_v1_access_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_seagull_control_v1_access_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_seagull_control_v1_access_proto_goTypes = []any{
 	(Resource)(0),                 // 0: seagull.control.v1.Resource
 	(Action)(0),                   // 1: seagull.control.v1.Action
-	(*Permission)(nil),            // 2: seagull.control.v1.Permission
-	(*Grant)(nil),                 // 3: seagull.control.v1.Grant
-	(*Session)(nil),               // 4: seagull.control.v1.Session
-	(*SessionList)(nil),           // 5: seagull.control.v1.SessionList
-	(*SessionRequest)(nil),        // 6: seagull.control.v1.SessionRequest
-	(*SessionResponse)(nil),       // 7: seagull.control.v1.SessionResponse
-	(*RevocationRequest)(nil),     // 8: seagull.control.v1.RevocationRequest
-	(*RevocationResponse)(nil),    // 9: seagull.control.v1.RevocationResponse
-	(*Refusal)(nil),               // 10: seagull.control.v1.Refusal
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 12: google.protobuf.Duration
+	(Scope)(0),                    // 2: seagull.control.v1.Scope
+	(*Permission)(nil),            // 3: seagull.control.v1.Permission
+	(*Grant)(nil),                 // 4: seagull.control.v1.Grant
+	(*Session)(nil),               // 5: seagull.control.v1.Session
+	(*SessionList)(nil),           // 6: seagull.control.v1.SessionList
+	(*SessionRequest)(nil),        // 7: seagull.control.v1.SessionRequest
+	(*SessionResponse)(nil),       // 8: seagull.control.v1.SessionResponse
+	(*RevocationRequest)(nil),     // 9: seagull.control.v1.RevocationRequest
+	(*RevocationResponse)(nil),    // 10: seagull.control.v1.RevocationResponse
+	(*Refusal)(nil),               // 11: seagull.control.v1.Refusal
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 13: google.protobuf.Duration
 }
 var file_seagull_control_v1_access_proto_depIdxs = []int32{
 	0,  // 0: seagull.control.v1.Permission.resource:type_name -> seagull.control.v1.Resource
 	1,  // 1: seagull.control.v1.Permission.action:type_name -> seagull.control.v1.Action
-	2,  // 2: seagull.control.v1.Grant.permissions:type_name -> seagull.control.v1.Permission
-	11, // 3: seagull.control.v1.Session.issued_at:type_name -> google.protobuf.Timestamp
-	11, // 4: seagull.control.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 5: seagull.control.v1.Session.grant:type_name -> seagull.control.v1.Grant
-	4,  // 6: seagull.control.v1.SessionList.sessions:type_name -> seagull.control.v1.Session
-	12, // 7: seagull.control.v1.SessionRequest.requested_lifetime:type_name -> google.protobuf.Duration
-	4,  // 8: seagull.control.v1.SessionResponse.session:type_name -> seagull.control.v1.Session
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	3,  // 2: seagull.control.v1.Grant.permissions:type_name -> seagull.control.v1.Permission
+	2,  // 3: seagull.control.v1.Grant.scope:type_name -> seagull.control.v1.Scope
+	12, // 4: seagull.control.v1.Session.issued_at:type_name -> google.protobuf.Timestamp
+	12, // 5: seagull.control.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 6: seagull.control.v1.Session.grant:type_name -> seagull.control.v1.Grant
+	5,  // 7: seagull.control.v1.SessionList.sessions:type_name -> seagull.control.v1.Session
+	13, // 8: seagull.control.v1.SessionRequest.requested_lifetime:type_name -> google.protobuf.Duration
+	5,  // 9: seagull.control.v1.SessionResponse.session:type_name -> seagull.control.v1.Session
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_seagull_control_v1_access_proto_init() }
@@ -735,7 +809,7 @@ func file_seagull_control_v1_access_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seagull_control_v1_access_proto_rawDesc), len(file_seagull_control_v1_access_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,

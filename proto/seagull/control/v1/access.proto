@@ -17,6 +17,7 @@ enum Resource {
   RESOURCE_INCIDENTS = 8;
   RESOURCE_INVENTORY = 9;
   RESOURCE_VULNERABILITIES = 10;
+  RESOURCE_RELEASES = 11;
 }
 
 enum Action {
@@ -31,6 +32,18 @@ message Permission {
   Action action = 2;
 }
 
+// What a grant reaches. The platform's is what every tenant shares, such as the
+// ruleset, the sessions and the releases, and is held only by a grant of the
+// platform. Reaching the platform is never reaching every tenant: whichever
+// scope it has, a grant acts on the records of the tenants it lists and of no
+// other. An answer that carries no scope comes from a server that tells none,
+// and is not to be read as either.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  SCOPE_PLATFORM = 1;
+  SCOPE_TENANT = 2;
+}
+
 // Sent so a client can show a caller what they hold. The server decides every
 // request against its own policy regardless of what the client believes.
 message Grant {
@@ -38,6 +51,7 @@ message Grant {
   repeated string tenants = 2;
   repeated string roles = 3;
   repeated Permission permissions = 4;
+  Scope scope = 5;
 }
 
 message Session {
