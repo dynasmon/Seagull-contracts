@@ -228,8 +228,15 @@ type Stream struct {
 	// hold items; zero for one whose records hold none.
 	MaxItemsPerRecord uint32 `protobuf:"varint,9,opt,name=max_items_per_record,json=maxItemsPerRecord,proto3" json:"max_items_per_record,omitempty"`
 	MaxItemsPerBatch  uint32 `protobuf:"varint,10,opt,name=max_items_per_batch,json=maxItemsPerBatch,proto3" json:"max_items_per_batch,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// How often the platform asks an agent to send a record of this stream, for a
+	// stream whose every record announces when the next one comes, such as status
+	// reports; absent for every other stream. It is asked for and never imposed: a
+	// record is judged against the interval it announces, within the bounds its
+	// own contract sets, so an agent that keeps another one is still admitted and
+	// is not taken for one that went quiet.
+	Interval      *durationpb.Duration `protobuf:"bytes,11,opt,name=interval,proto3" json:"interval,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Stream) Reset() {
@@ -332,6 +339,13 @@ func (x *Stream) GetMaxItemsPerBatch() uint32 {
 	return 0
 }
 
+func (x *Stream) GetInterval() *durationpb.Duration {
+	if x != nil {
+		return x.Interval
+	}
+	return nil
+}
+
 // Something a listener offers an agent beyond its streams. `name` is one of the
 // names below and nothing else, and an agent ignores a name it does not know, so
 // a newer platform can offer more to an older agent:
@@ -421,7 +435,7 @@ const file_seagull_platform_v1_descriptor_proto_rawDesc = "" +
 	"serverTime\x125\n" +
 	"\astreams\x18\x06 \x03(\v2\x1b.seagull.platform.v1.StreamR\astreams\x12$\n" +
 	"\x0emax_body_bytes\x18\a \x01(\x04R\fmaxBodyBytes\x12C\n" +
-	"\fcapabilities\x18\b \x03(\v2\x1f.seagull.platform.v1.CapabilityR\fcapabilities\"\xcc\x03\n" +
+	"\fcapabilities\x18\b \x03(\v2\x1f.seagull.platform.v1.CapabilityR\fcapabilities\"\x83\x04\n" +
 	"\x06Stream\x12\x14\n" +
 	"\x05route\x18\x01 \x01(\tR\x05route\x12\x14\n" +
 	"\x05batch\x18\x02 \x01(\tR\x05batch\x12\x16\n" +
@@ -433,7 +447,8 @@ const file_seagull_platform_v1_descriptor_proto_rawDesc = "" +
 	"\x0emax_clock_skew\x18\b \x01(\v2\x19.google.protobuf.DurationR\fmaxClockSkew\x12/\n" +
 	"\x14max_items_per_record\x18\t \x01(\rR\x11maxItemsPerRecord\x12-\n" +
 	"\x13max_items_per_batch\x18\n" +
-	" \x01(\rR\x10maxItemsPerBatch\"\x84\x01\n" +
+	" \x01(\rR\x10maxItemsPerBatch\x125\n" +
+	"\binterval\x18\v \x01(\v2\x19.google.protobuf.DurationR\binterval\"\x84\x01\n" +
 	"\n" +
 	"Capability\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
@@ -463,20 +478,21 @@ var file_seagull_platform_v1_descriptor_proto_goTypes = []any{
 	(*durationpb.Duration)(nil),   // 5: google.protobuf.Duration
 }
 var file_seagull_platform_v1_descriptor_proto_depIdxs = []int32{
-	0, // 0: seagull.platform.v1.Descriptor.supported_protocol:type_name -> seagull.platform.v1.VersionRange
-	0, // 1: seagull.platform.v1.Descriptor.supported_event_schema:type_name -> seagull.platform.v1.VersionRange
-	4, // 2: seagull.platform.v1.Descriptor.server_time:type_name -> google.protobuf.Timestamp
-	2, // 3: seagull.platform.v1.Descriptor.streams:type_name -> seagull.platform.v1.Stream
-	3, // 4: seagull.platform.v1.Descriptor.capabilities:type_name -> seagull.platform.v1.Capability
-	0, // 5: seagull.platform.v1.Stream.supported_schema:type_name -> seagull.platform.v1.VersionRange
-	5, // 6: seagull.platform.v1.Stream.max_age:type_name -> google.protobuf.Duration
-	5, // 7: seagull.platform.v1.Stream.max_clock_skew:type_name -> google.protobuf.Duration
-	0, // 8: seagull.platform.v1.Capability.supported_schema:type_name -> seagull.platform.v1.VersionRange
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	0,  // 0: seagull.platform.v1.Descriptor.supported_protocol:type_name -> seagull.platform.v1.VersionRange
+	0,  // 1: seagull.platform.v1.Descriptor.supported_event_schema:type_name -> seagull.platform.v1.VersionRange
+	4,  // 2: seagull.platform.v1.Descriptor.server_time:type_name -> google.protobuf.Timestamp
+	2,  // 3: seagull.platform.v1.Descriptor.streams:type_name -> seagull.platform.v1.Stream
+	3,  // 4: seagull.platform.v1.Descriptor.capabilities:type_name -> seagull.platform.v1.Capability
+	0,  // 5: seagull.platform.v1.Stream.supported_schema:type_name -> seagull.platform.v1.VersionRange
+	5,  // 6: seagull.platform.v1.Stream.max_age:type_name -> google.protobuf.Duration
+	5,  // 7: seagull.platform.v1.Stream.max_clock_skew:type_name -> google.protobuf.Duration
+	5,  // 8: seagull.platform.v1.Stream.interval:type_name -> google.protobuf.Duration
+	0,  // 9: seagull.platform.v1.Capability.supported_schema:type_name -> seagull.platform.v1.VersionRange
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_seagull_platform_v1_descriptor_proto_init() }
