@@ -175,7 +175,8 @@ of its parts run as they should, what it holds and has not delivered, its
 certificate, the settings and the policy it runs on, what it may do on its host,
 and how the run before this one ended. An agent sends one every `interval` it
 announces, on a stream of its own beside events and inventory, so an agent on a
-host nobody logs into is still heard from. A `StatusBatch` is answered and
+host nobody logs into is still heard from; the gateway's descriptor names the
+interval the platform asks for. A `StatusBatch` is answered and
 refused with the same `BatchAck` and `Rejection` as every other batch, and the
 platform stamps who sent a report and when it arrived exactly as it stamps an
 event.
@@ -436,7 +437,10 @@ An agent learns from it what it may send before it sends anything, and still
 reads every answer: a descriptor never decides admission, and a batch is judged
 on its own whether or not its agent asked. `max_record_bytes` leaves room for
 what the platform stamps on a record before weighing it, so a record an agent
-keeps within it is never refused for its size. Names are strings an agent
+keeps within it is never refused for its size. A stream whose records announce
+when the next one comes, status reports today, also names the `interval` the
+platform asks an agent to keep; it is asked for and never imposed, since a report
+is judged against the interval it announces. Names are strings an agent
 ignores when it does not know them, so a newer platform can describe more to an
 older agent. Every answer carries an entity tag; asked again with it in
 `If-None-Match`, a listener whose descriptor did not change answers `304`.
