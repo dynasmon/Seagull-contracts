@@ -84,6 +84,14 @@ message Stream {
   // hold items; zero for one whose records hold none.
   uint32 max_items_per_record = 9;
   uint32 max_items_per_batch = 10;
+
+  // How often the platform asks an agent to send a record of this stream, for a
+  // stream whose every record announces when the next one comes, such as status
+  // reports; absent for every other stream. It is asked for and never imposed: a
+  // record is judged against the interval it announces, within the bounds its
+  // own contract sets, so an agent that keeps another one is still admitted and
+  // is not taken for one that went quiet.
+  google.protobuf.Duration interval = 11;
 }
 
 // Something a listener offers an agent beyond its streams. `name` is one of the
