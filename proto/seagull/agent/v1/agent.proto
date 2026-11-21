@@ -3,6 +3,7 @@ syntax = "proto3";
 package seagull.agent.v1;
 
 import "google/protobuf/timestamp.proto";
+import "seagull/agent/v1/finding.proto";
 import "seagull/agent/v1/status.proto";
 import "seagull/assessment/v1/assessment.proto";
 import "seagull/hunt/v1/hunt.proto";
@@ -107,6 +108,12 @@ message Agent {
   // found it. Carried when one agent is read and left out of a page of them,
   // and absent when none arrived.
   seagull.assessment.v1.Assessment assessment = 16;
+
+  // What the platform found about the agent that is still open, newest first:
+  // a silence, an installation or an identity reporting from two places, a
+  // replaced certificate in use. Carried when one agent is read and left out of
+  // a page of them.
+  repeated Finding findings = 17;
 }
 
 // One thing somebody did to an agent. Append only: the trail is what makes a
