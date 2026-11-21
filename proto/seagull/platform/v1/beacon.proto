@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package seagull.platform.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// That a gateway is serving agents, said by the gateway itself, again and again,
+// on a compacted topic keyed by the gateway.
+//
+// It is what tells an agent that went quiet from a platform that stopped
+// listening. While no gateway says it admits, nothing an agent sends can arrive,
+// and an agent's silence says nothing about the agent, so a reader of what agents
+// report judges no silence over that stretch.
+message GatewayBeacon {
+  // Always 1. A reader refuses a beacon written to a schema it does not read.
+  uint32 schema_version = 1;
+
+  // The gateway, as it names itself in the reception it stamps on every record
+  // it admits, at most 64 bytes.
+  string gateway = 2;
+
+  // When it said so, by its own clock, and the longest it lets pass before it
+  // says so again.
+  google.protobuf.Timestamp at = 3;
+  google.protobuf.Duration every = 4;
+
+  // Whether it admits what agents send. False while its roster is stale, when it
+  // answers every batch `roster_stale`, and in the last beacon it sends as it
+  // stops.
+  bool admitting = 5;
+}

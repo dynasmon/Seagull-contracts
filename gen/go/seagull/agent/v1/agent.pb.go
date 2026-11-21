@@ -283,7 +283,12 @@ type Agent struct {
 	// assessments landed: its posture, as the checks of the policy it ran on
 	// found it. Carried when one agent is read and left out of a page of them,
 	// and absent when none arrived.
-	Assessment    *v1.Assessment `protobuf:"bytes,16,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	Assessment *v1.Assessment `protobuf:"bytes,16,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	// What the platform found about the agent that is still open, newest first:
+	// a silence, an installation or an identity reporting from two places, a
+	// replaced certificate in use. Carried when one agent is read and left out of
+	// a page of them.
+	Findings      []*Finding `protobuf:"bytes,17,rep,name=findings,proto3" json:"findings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -426,6 +431,13 @@ func (x *Agent) GetStatus() *Status {
 func (x *Agent) GetAssessment() *v1.Assessment {
 	if x != nil {
 		return x.Assessment
+	}
+	return nil
+}
+
+func (x *Agent) GetFindings() []*Finding {
+	if x != nil {
+		return x.Findings
 	}
 	return nil
 }
@@ -1348,7 +1360,7 @@ var File_seagull_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x1cseagull/agent/v1/agent.proto\x12\x10seagull.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dseagull/agent/v1/status.proto\x1a&seagull/assessment/v1/assessment.proto\x1a\x1aseagull/hunt/v1/hunt.proto\"\xdf\x01\n" +
+	"\x1cseagull/agent/v1/agent.proto\x12\x10seagull.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1eseagull/agent/v1/finding.proto\x1a\x1dseagull/agent/v1/status.proto\x1a&seagull/assessment/v1/assessment.proto\x1a\x1aseagull/hunt/v1/hunt.proto\"\xdf\x01\n" +
 	"\bIdentity\x12\x18\n" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x16\n" +
 	"\x06serial\x18\x02 \x01(\tR\x06serial\x12-\n" +
@@ -1359,7 +1371,7 @@ const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\bPlatform\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\"\n" +
 	"\farchitecture\x18\x02 \x01(\tR\farchitecture\x12\x1a\n" +
-	"\bhostname\x18\x03 \x01(\tR\bhostname\"\x88\x06\n" +
+	"\bhostname\x18\x03 \x01(\tR\bhostname\"\xbf\x06\n" +
 	"\x05Agent\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12%\n" +
 	"\x0eschema_version\x18\x02 \x01(\rR\rschemaVersion\x12\x1b\n" +
@@ -1381,7 +1393,8 @@ const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\x06status\x18\x0f \x01(\v2\x18.seagull.agent.v1.StatusR\x06status\x12A\n" +
 	"\n" +
 	"assessment\x18\x10 \x01(\v2!.seagull.assessment.v1.AssessmentR\n" +
-	"assessment\"\xef\x01\n" +
+	"assessment\x125\n" +
+	"\bfindings\x18\x11 \x03(\v2\x19.seagull.agent.v1.FindingR\bfindings\"\xef\x01\n" +
 	"\n" +
 	"Transition\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1a\n" +
@@ -1490,7 +1503,8 @@ var file_seagull_agent_v1_agent_proto_goTypes = []any{
 	(Liveness)(0),                 // 18: seagull.agent.v1.Liveness
 	(*Status)(nil),                // 19: seagull.agent.v1.Status
 	(*v1.Assessment)(nil),         // 20: seagull.assessment.v1.Assessment
-	(*v11.TimeRange)(nil),         // 21: seagull.hunt.v1.TimeRange
+	(*Finding)(nil),               // 21: seagull.agent.v1.Finding
+	(*v11.TimeRange)(nil),         // 22: seagull.hunt.v1.TimeRange
 }
 var file_seagull_agent_v1_agent_proto_depIdxs = []int32{
 	17, // 0: seagull.agent.v1.Identity.issued_at:type_name -> google.protobuf.Timestamp
@@ -1505,27 +1519,28 @@ var file_seagull_agent_v1_agent_proto_depIdxs = []int32{
 	17, // 9: seagull.agent.v1.Agent.last_reported:type_name -> google.protobuf.Timestamp
 	19, // 10: seagull.agent.v1.Agent.status:type_name -> seagull.agent.v1.Status
 	20, // 11: seagull.agent.v1.Agent.assessment:type_name -> seagull.assessment.v1.Assessment
-	0,  // 12: seagull.agent.v1.Transition.from:type_name -> seagull.agent.v1.State
-	0,  // 13: seagull.agent.v1.Transition.to:type_name -> seagull.agent.v1.State
-	17, // 14: seagull.agent.v1.Transition.at:type_name -> google.protobuf.Timestamp
-	4,  // 15: seagull.agent.v1.History.transitions:type_name -> seagull.agent.v1.Transition
-	2,  // 16: seagull.agent.v1.Registration.platform:type_name -> seagull.agent.v1.Platform
-	1,  // 17: seagull.agent.v1.BindingRequest.identity:type_name -> seagull.agent.v1.Identity
-	0,  // 18: seagull.agent.v1.TransitionRequest.to:type_name -> seagull.agent.v1.State
-	21, // 19: seagull.agent.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
-	0,  // 20: seagull.agent.v1.Query.states:type_name -> seagull.agent.v1.State
-	3,  // 21: seagull.agent.v1.Page.agents:type_name -> seagull.agent.v1.Agent
-	0,  // 22: seagull.agent.v1.Admission.state:type_name -> seagull.agent.v1.State
-	17, // 23: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
-	1,  // 24: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
-	1,  // 25: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
-	17, // 26: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
-	15, // 27: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	21, // 12: seagull.agent.v1.Agent.findings:type_name -> seagull.agent.v1.Finding
+	0,  // 13: seagull.agent.v1.Transition.from:type_name -> seagull.agent.v1.State
+	0,  // 14: seagull.agent.v1.Transition.to:type_name -> seagull.agent.v1.State
+	17, // 15: seagull.agent.v1.Transition.at:type_name -> google.protobuf.Timestamp
+	4,  // 16: seagull.agent.v1.History.transitions:type_name -> seagull.agent.v1.Transition
+	2,  // 17: seagull.agent.v1.Registration.platform:type_name -> seagull.agent.v1.Platform
+	1,  // 18: seagull.agent.v1.BindingRequest.identity:type_name -> seagull.agent.v1.Identity
+	0,  // 19: seagull.agent.v1.TransitionRequest.to:type_name -> seagull.agent.v1.State
+	22, // 20: seagull.agent.v1.Query.range:type_name -> seagull.hunt.v1.TimeRange
+	0,  // 21: seagull.agent.v1.Query.states:type_name -> seagull.agent.v1.State
+	3,  // 22: seagull.agent.v1.Page.agents:type_name -> seagull.agent.v1.Agent
+	0,  // 23: seagull.agent.v1.Admission.state:type_name -> seagull.agent.v1.State
+	17, // 24: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
+	1,  // 25: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
+	1,  // 26: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
+	17, // 27: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
+	15, // 28: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
+	29, // [29:29] is the sub-list for method output_type
+	29, // [29:29] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_seagull_agent_v1_agent_proto_init() }
@@ -1533,6 +1548,7 @@ func file_seagull_agent_v1_agent_proto_init() {
 	if File_seagull_agent_v1_agent_proto != nil {
 		return
 	}
+	file_seagull_agent_v1_finding_proto_init()
 	file_seagull_agent_v1_status_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

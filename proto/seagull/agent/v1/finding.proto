@@ -1,0 +1,193 @@
+syntax = "proto3";
+
+package seagull.agent.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "seagull/hunt/v1/hunt.proto";
+
+// What the platform concluded about one agent from how it reports and how it
+// presents itself, and never from an event: that it stopped reporting while the
+// platform was listening, that one installation or one identity reports from
+// two places, or that a certificate a renewal replaced is still in use.
+//
+// A finding changes nothing by itself. No agent is disabled, revoked or refused
+// for one, and which of two installations is the real one is an operator's to
+// decide, by revoking the agent and enrolling it again.
+//
+// A finding is named by the tenant, the agent, its kind and the episode it is
+// about, so judging the same episode again, after a restart or a replay, names
+// the same finding. A record is one decision about it and never changes; where a
+// finding stands is its newest decision, by `decided_at`.
+message Finding {
+  // A closed set, because a platform counts open findings by it.
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+
+    // An agent the registry admits stopped reporting: its newest report is
+    // older than five times the interval that report announced, the point at
+    // which its liveness reads silent, and the platform was listening all that
+    // time. An agent whose newest report said it was stopping is silent too once
+    // it stays away that long, and `reports` says it said so. The episode is
+    // the agent's newest report.
+    KIND_SILENCE = 1;
+
+    // One installation reported from two places: a run of it carried a
+    // sequence the installation had already passed, and it was neither the same
+    // report sent again nor one the run after it had already accounted for. A
+    // copy of an installation's state goes on counting from where the original
+    // was. The episode is the installation and the first sequence heard twice.
+    KIND_COPIED_INSTALLATION = 2;
+
+    // Two installations reported as one agent in turn: one wrote a new report
+    // after the other had reported. An installation that replaced another is the
+    // only one heard from then on, so two heard in turn are two machines holding
+    // one identity. The episode is the two installations.
+    KIND_SHARED_IDENTITY = 3;
+
+    // A certificate a renewal had replaced was used again: to ask for a renewal,
+    // which the platform refuses, or past the tolerance a listener allows a
+    // connection opened before the renewal. The episode is the certificate in
+    // force when it happened, which a finding never names.
+    KIND_REPLACED_CERTIFICATE = 4;
+  }
+
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_OPEN = 1;
+    STATE_CLOSED = 2;
+  }
+
+  // What closed a finding. A closed set.
+  enum Closure {
+    CLOSURE_UNSPECIFIED = 0;
+
+    // The agent reported again, which ends a silence.
+    CLOSURE_HEARD = 1;
+
+    // Only one of the two places was heard for as long as the platform takes
+    // for silence, which ends a copied installation or a shared identity.
+    CLOSURE_ONE_SOURCE = 2;
+
+    // Another certificate was bound to the agent, which ends the use of the one
+    // it replaced.
+    CLOSURE_REBOUND = 3;
+
+    // The registry stopped admitting the agent: somebody disabled, revoked or
+    // decommissioned it, which is how an operator answers any of these.
+    CLOSURE_NOT_ADMITTED = 4;
+  }
+
+  // Where a replaced certificate was used.
+  message Use {
+    // A closed set.
+    enum Listener {
+      LISTENER_UNSPECIFIED = 0;
+
+      // The control plane's agent listener: renewal, policy and update.
+      LISTENER_CONTROL = 1;
+
+      // The ingest gateway: every stream and its descriptor.
+      LISTENER_GATEWAY = 2;
+    }
+
+    Listener listener = 1;
+
+    // The route it asked for, such as `POST /v1/agents/certificate`, at most
+    // 128 bytes.
+    string route = 2;
+  }
+
+  // Always 1. A platform refuses a finding written to a schema it does not
+  // read.
+  uint32 schema_version = 1;
+
+  // Derived from the tenant, the agent, the kind and the episode: lowercase
+  // hex, at most 64 bytes.
+  string finding_id = 2;
+
+  // The agent's tenant as the registry admits it, and the agent.
+  string tenant_id = 3;
+  string agent_id = 4;
+
+  Kind kind = 5;
+  State state = 6;
+
+  // Unspecified while the finding is open.
+  Closure closure = 7;
+
+  // When the episode began, when it was last observed and how many times, by
+  // the platform's clock: the reports that carried a sequence heard before, the
+  // turns two installations took, the uses of a replaced certificate. A silence
+  // is observed once and begins five intervals after its newest report arrived,
+  // so judging it again names the same instant.
+  google.protobuf.Timestamp opened_at = 8;
+  google.protobuf.Timestamp last_observed_at = 9;
+  uint64 observations = 10;
+
+  // When the finding closed. Absent while it is open.
+  google.protobuf.Timestamp closed_at = 11;
+
+  // When this decision was made, by the platform's clock.
+  google.protobuf.Timestamp decided_at = 12;
+
+  // The reports the decision rests on, at most 4: for a silence its newest
+  // report and, once it closes, the report that ended it; for two places, the
+  // newest report heard from each.
+  repeated Heard reports = 13;
+
+  // For a replaced certificate only.
+  Use use = 14;
+}
+
+// One report as the platform heard it: enough to find it again, and nothing of
+// what it says about the host.
+message Heard {
+  // As the report carried them, at most 64 bytes each.
+  string installation_id = 1;
+  string boot_id = 2;
+  uint64 sequence = 3;
+
+  // When the run that wrote it started, and when the agent wrote it, by the
+  // agent's clock.
+  google.protobuf.Timestamp run_started_at = 4;
+  google.protobuf.Timestamp reported_at = 5;
+
+  // When the platform received it, by its own clock, and the gateway that did,
+  // at most 64 bytes.
+  google.protobuf.Timestamp ingest_time = 6;
+  string gateway = 7;
+
+  // The interval it announced, and whether it said the agent was stopping.
+  google.protobuf.Duration interval = 8;
+  bool stopping = 9;
+}
+
+// What a person asks of the findings about the agents they may see.
+//
+// An empty list is not a filter and never a wildcard denial: it asks about every
+// value of that field, within the tenants the caller holds.
+message FindingQuery {
+  // Over `opened_at`, and optional.
+  seagull.hunt.v1.TimeRange range = 1;
+
+  repeated Finding.Kind kinds = 2;
+  repeated Finding.State states = 3;
+
+  // One agent to ask about, or empty for every agent the caller may see.
+  string agent_id = 4;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 5;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged.
+  string cursor = 6;
+}
+
+// Ordered by `opened_at`, newest first. An empty `next_cursor` means there is
+// nothing further.
+message FindingPage {
+  repeated Finding findings = 1;
+  string next_cursor = 2;
+}
