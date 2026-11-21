@@ -12,7 +12,7 @@ must be able to change internally without asking an agent to upgrade.
 ```text
 proto/seagull/event/v1/         the canonical security event
 proto/seagull/ingest/v1/        what an agent sends and what it is told back
-proto/seagull/platform/v1/      the descriptor an agent negotiates against
+proto/seagull/platform/v1/      the descriptor an agent negotiates against, and the beacon a gateway serves under
 proto/seagull/detection/v1/     what the rules decided about an event
 proto/seagull/hunt/v1/          what a person may ask of what was stored
 proto/seagull/control/v1/       who a caller is and what they may do
@@ -205,6 +205,30 @@ whether it takes updates, in which format, over which state, and the newest root
 and catalog it verified, so a platform knows which agents a release or a change
 of its own can reach before it asks anything of them. Like `build`, it is a
 claim.
+
+## The agent finding
+
+A `Finding` is what the platform concluded about an agent from how it reports
+and how it presents itself, and never from an event: that it stopped reporting
+while the platform was listening, that one installation reports from two places,
+that two installations take turns reporting as one agent, or that a certificate
+a renewal replaced is still in use. It is not a detection, which is a rule
+matching an event, and not an alert, and it changes nothing by itself: no agent
+is disabled, revoked or refused for one. Which of two installations is the real
+one is an operator's to decide, by revoking the agent and enrolling it again,
+and a finding closes when the registry stops admitting the agent.
+
+A finding is named by the tenant, the agent, its kind and the episode, so
+judging the same episode again, after a restart or a replay, names the same
+finding. A record is one decision about it, and where a finding stands is its
+newest decision. A silence begins five intervals after the agent's newest report
+arrived, the point at which its liveness reads silent, and is judged only while
+the platform was listening all that time. `reports` names the reports a
+decision rests on by installation, boot, run and sequence, never by what they
+say about the host, and a finding about a replaced certificate says where it was
+used and never which certificate it was. `Agent.findings` carries the open
+findings when one agent is read; a `FindingQuery` lists them within the tenants
+a caller holds.
 
 ## The agent policy
 
@@ -444,6 +468,15 @@ is judged against the interval it announces. Names are strings an agent
 ignores when it does not know them, so a newer platform can describe more to an
 older agent. Every answer carries an entity tag; asked again with it in
 `If-None-Match`, a listener whose descriptor did not change answers `304`.
+
+## The gateway beacon
+
+A `GatewayBeacon` is a gateway saying, again and again on a compacted topic keyed
+by the gateway, that it is serving agents, and whether it admits what they send:
+not while its roster is stale, and not in the last beacon it sends as it stops.
+It never reaches an agent. It is what tells an agent that went quiet from a
+platform that stopped listening: while no gateway says it admits, nothing an
+agent sends can arrive, so no silence is judged over that stretch.
 
 ## The acknowledgement
 
