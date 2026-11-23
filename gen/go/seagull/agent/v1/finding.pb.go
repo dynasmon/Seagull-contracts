@@ -50,7 +50,9 @@ const (
 	// A certificate a renewal had replaced was used again: to ask for a renewal,
 	// which the platform refuses, or past the tolerance a listener allows a
 	// connection opened before the renewal. The episode is the certificate in
-	// force when it happened, which a finding never names.
+	// force when it happened, which a finding never names, at one listener: the
+	// control plane's agent listener and the gateways each make a finding of
+	// their own, and `use` says which.
 	Finding_KIND_REPLACED_CERTIFICATE Finding_Kind = 4
 )
 
