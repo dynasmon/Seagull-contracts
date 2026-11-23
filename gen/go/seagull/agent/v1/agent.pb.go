@@ -937,9 +937,10 @@ func (x *Page) GetNextCursor() string {
 // The registry is a control-plane store and the ingest path may not read it per
 // batch, so what an operator decided reaches the gateway as a record on a
 // compacted topic keyed by the agent: the gateway replays the topic before it
-// serves and follows it afterwards. It carries the state and not the reason, the
-// operator or the certificate — a data-plane process learns that an identity is
-// no longer honoured, not who stopped honouring it.
+// serves and follows it afterwards. It carries the state and not the reason or
+// the operator, and of a certificate only its fingerprint — a data-plane process
+// learns which identity it still honours and on which certificate, not who
+// decided it or what the certificate names.
 type Admission struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	AgentId  string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
@@ -947,10 +948,28 @@ type Admission struct {
 	State    State                  `protobuf:"varint,3,opt,name=state,proto3,enum=seagull.agent.v1.State" json:"state,omitempty"`
 	// The registry revision this record was written from, so a record that arrives
 	// out of order is recognised as older rather than applied over a newer one.
-	Revision      uint64                 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
-	ChangedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=changed_at,json=changedAt,proto3" json:"changed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Revision  uint64                 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	ChangedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=changed_at,json=changedAt,proto3" json:"changed_at,omitempty"`
+	// The certificate the registry binds the agent to, as the SHA-256 of its DER
+	// encoding in lowercase hex, and the instant it is valid from. A listener
+	// admits the agent on that certificate, answers a certificate of the agent
+	// valid from no earlier instant as one it has not heard of yet, so the agent
+	// tries again, and refuses any other. Empty when no certificate is bound, and
+	// in a record a platform older than this field wrote: a listener then admits
+	// the agent on any certificate its authorities signed for it.
+	FingerprintSha256 string                 `protobuf:"bytes,6,opt,name=fingerprint_sha256,json=fingerprintSha256,proto3" json:"fingerprint_sha256,omitempty"`
+	IssuedAt          *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=issued_at,json=issuedAt,proto3" json:"issued_at,omitempty"`
+	// The certificate the bound one replaced, and when the registry bound it. A
+	// listener admits it for a short tolerance once it learns of the replacement,
+	// never counted from before `replaced_at`, so a request in flight and a
+	// connection busy at that instant finish, and refuses it afterwards. For a
+	// renewal it is the certificate the renewal was presented with, which an agent
+	// whose answer was lost still holds. Empty when the bound certificate replaced
+	// none.
+	ReplacedFingerprintSha256 string                 `protobuf:"bytes,8,opt,name=replaced_fingerprint_sha256,json=replacedFingerprintSha256,proto3" json:"replaced_fingerprint_sha256,omitempty"`
+	ReplacedAt                *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=replaced_at,json=replacedAt,proto3" json:"replaced_at,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Admission) Reset() {
@@ -1014,6 +1033,34 @@ func (x *Admission) GetRevision() uint64 {
 func (x *Admission) GetChangedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ChangedAt
+	}
+	return nil
+}
+
+func (x *Admission) GetFingerprintSha256() string {
+	if x != nil {
+		return x.FingerprintSha256
+	}
+	return ""
+}
+
+func (x *Admission) GetIssuedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.IssuedAt
+	}
+	return nil
+}
+
+func (x *Admission) GetReplacedFingerprintSha256() string {
+	if x != nil {
+		return x.ReplacedFingerprintSha256
+	}
+	return ""
+}
+
+func (x *Admission) GetReplacedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReplacedAt
 	}
 	return nil
 }
@@ -1429,14 +1476,19 @@ const file_seagull_agent_v1_agent_proto_rawDesc = "" +
 	"\x04Page\x12/\n" +
 	"\x06agents\x18\x01 \x03(\v2\x17.seagull.agent.v1.AgentR\x06agents\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\"\xc9\x01\n" +
+	"nextCursor\"\xae\x03\n" +
 	"\tAdmission\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12-\n" +
 	"\x05state\x18\x03 \x01(\x0e2\x17.seagull.agent.v1.StateR\x05state\x12\x1a\n" +
 	"\brevision\x18\x04 \x01(\x04R\brevision\x129\n" +
 	"\n" +
-	"changed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt\"n\n" +
+	"changed_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tchangedAt\x12-\n" +
+	"\x12fingerprint_sha256\x18\x06 \x01(\tR\x11fingerprintSha256\x127\n" +
+	"\tissued_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bissuedAt\x12>\n" +
+	"\x1breplaced_fingerprint_sha256\x18\b \x01(\tR\x19replacedFingerprintSha256\x12;\n" +
+	"\vreplaced_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"replacedAt\"n\n" +
 	"\x12CertificateRequest\x12\x17\n" +
 	"\acsr_pem\x18\x01 \x01(\fR\x06csrPem\x12\x12\n" +
 	"\x04note\x18\x02 \x01(\tR\x04note\x12+\n" +
@@ -1532,15 +1584,17 @@ var file_seagull_agent_v1_agent_proto_depIdxs = []int32{
 	3,  // 22: seagull.agent.v1.Page.agents:type_name -> seagull.agent.v1.Agent
 	0,  // 23: seagull.agent.v1.Admission.state:type_name -> seagull.agent.v1.State
 	17, // 24: seagull.agent.v1.Admission.changed_at:type_name -> google.protobuf.Timestamp
-	1,  // 25: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
-	1,  // 26: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
-	17, // 27: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
-	15, // 28: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	17, // 25: seagull.agent.v1.Admission.issued_at:type_name -> google.protobuf.Timestamp
+	17, // 26: seagull.agent.v1.Admission.replaced_at:type_name -> google.protobuf.Timestamp
+	1,  // 27: seagull.agent.v1.IssuedCertificate.identity:type_name -> seagull.agent.v1.Identity
+	1,  // 28: seagull.agent.v1.CertificateRecord.identity:type_name -> seagull.agent.v1.Identity
+	17, // 29: seagull.agent.v1.CertificateRecord.superseded_at:type_name -> google.protobuf.Timestamp
+	15, // 30: seagull.agent.v1.CertificateHistory.certificates:type_name -> seagull.agent.v1.CertificateRecord
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_seagull_agent_v1_agent_proto_init() }

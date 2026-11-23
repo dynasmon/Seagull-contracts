@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package seagull.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/agent/v1/finding.proto";
+
+// A gateway refusing an agent, said by the gateway, for the platform to judge.
+//
+// One refusal decides nothing: a gateway refuses and goes on, and what the
+// refusals of one agent amount to is decided where its findings are, as a
+// `Finding`. A gateway gathers the refusals of one agent for one reason between
+// two records it publishes, on a topic keyed by the agent, so a holder of a key
+// asking as fast as it likes costs one record per agent each time the gateway
+// publishes.
+message Refusal {
+  // A closed set.
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+
+    // The agent presented a certificate a renewal had replaced, past the
+    // tolerance the gateway allows a connection opened before it learned of
+    // the renewal (`Finding.KIND_REPLACED_CERTIFICATE`).
+    REASON_REPLACED_CERTIFICATE = 1;
+  }
+
+  // Always 1. A reader refuses a record written to a schema it does not read.
+  uint32 schema_version = 1;
+
+  Reason reason = 2;
+
+  // The agent, and its tenant as the gateway's roster admits it.
+  string tenant_id = 3;
+  string agent_id = 4;
+
+  // The admission the gateway refused under: the registry revision it was
+  // written from, and the certificate in force, as `Admission` carries it. The
+  // certificate presented is never named.
+  uint64 revision = 5;
+  string fingerprint_sha256 = 6;
+
+  // Where it was refused: the gateway, and the route of the newest refusal
+  // gathered here.
+  Finding.Use use = 7;
+
+  // The first and the newest refusal gathered here, by the gateway's clock, and
+  // how many there were, at least one.
+  google.protobuf.Timestamp first_refused_at = 8;
+  google.protobuf.Timestamp last_refused_at = 9;
+  uint64 refusals = 10;
+
+  // The gateway, as it names itself in the reception it stamps on every record
+  // it admits, at most 64 bytes.
+  string gateway = 11;
+}

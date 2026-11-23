@@ -204,9 +204,10 @@ message Page {
 // The registry is a control-plane store and the ingest path may not read it per
 // batch, so what an operator decided reaches the gateway as a record on a
 // compacted topic keyed by the agent: the gateway replays the topic before it
-// serves and follows it afterwards. It carries the state and not the reason, the
-// operator or the certificate — a data-plane process learns that an identity is
-// no longer honoured, not who stopped honouring it.
+// serves and follows it afterwards. It carries the state and not the reason or
+// the operator, and of a certificate only its fingerprint — a data-plane process
+// learns which identity it still honours and on which certificate, not who
+// decided it or what the certificate names.
 message Admission {
   string agent_id = 1;
   string tenant_id = 2;
@@ -216,6 +217,26 @@ message Admission {
   // out of order is recognised as older rather than applied over a newer one.
   uint64 revision = 4;
   google.protobuf.Timestamp changed_at = 5;
+
+  // The certificate the registry binds the agent to, as the SHA-256 of its DER
+  // encoding in lowercase hex, and the instant it is valid from. A listener
+  // admits the agent on that certificate, answers a certificate of the agent
+  // valid from no earlier instant as one it has not heard of yet, so the agent
+  // tries again, and refuses any other. Empty when no certificate is bound, and
+  // in a record a platform older than this field wrote: a listener then admits
+  // the agent on any certificate its authorities signed for it.
+  string fingerprint_sha256 = 6;
+  google.protobuf.Timestamp issued_at = 7;
+
+  // The certificate the bound one replaced, and when the registry bound it. A
+  // listener admits it for a short tolerance once it learns of the replacement,
+  // never counted from before `replaced_at`, so a request in flight and a
+  // connection busy at that instant finish, and refuses it afterwards. For a
+  // renewal it is the certificate the renewal was presented with, which an agent
+  // whose answer was lost still holds. Empty when the bound certificate replaced
+  // none.
+  string replaced_fingerprint_sha256 = 8;
+  google.protobuf.Timestamp replaced_at = 9;
 }
 
 // Asking the platform to sign a certificate for an agent.

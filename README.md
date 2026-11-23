@@ -163,10 +163,23 @@ would be a write on the ingest path, and the ingest path may not depend on the
 control plane's store.
 
 `Admission` is what the data plane is told, and it is deliberately less than the
-record: an agent, a tenant, a state and the revision it was written from. It
-crosses a compacted topic keyed by the agent, so a gateway replays it before it
-serves and follows it afterwards, and learns that an identity is no longer
-honoured without learning who stopped honouring it or why.
+record: an agent, a tenant, a state, the revision it was written from, and the
+certificate the agent is admitted on, by its fingerprint alone. It crosses a
+compacted topic keyed by the agent, so a gateway replays it before it serves and
+follows it afterwards, and learns that an identity is no longer honoured without
+learning who stopped honouring it or why. A listener admits an agent on the
+certificate in force, answers one valid from no earlier instant as one it has
+not heard of yet, so the agent tries again, admits the certificate the bound one
+replaced for a short tolerance once it learns of the replacement, so a request
+in flight finishes, and refuses any other. A record without a fingerprint, as a
+platform older than the field writes it, admits the agent on any certificate
+its authorities signed, as before.
+
+A `Refusal` is a gateway saying it refused an agent, gathered per agent between
+two records it publishes: today a certificate a renewal had replaced, presented
+past the tolerance. It names the certificate in force, as `Admission` does, and
+never the one presented, and it decides nothing by itself: what the refusals of
+one agent amount to is a `Finding`.
 
 ## The agent status
 
