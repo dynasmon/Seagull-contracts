@@ -38,6 +38,8 @@ const (
 	Resource_RESOURCE_INVENTORY       Resource = 9
 	Resource_RESOURCE_VULNERABILITIES Resource = 10
 	Resource_RESOURCE_RELEASES        Resource = 11
+	// The audit trail: who did what to which thing, read with `audit:read`.
+	Resource_RESOURCE_AUDIT Resource = 12
 )
 
 // Enum value maps for Resource.
@@ -55,6 +57,7 @@ var (
 		9:  "RESOURCE_INVENTORY",
 		10: "RESOURCE_VULNERABILITIES",
 		11: "RESOURCE_RELEASES",
+		12: "RESOURCE_AUDIT",
 	}
 	Resource_value = map[string]int32{
 		"RESOURCE_UNSPECIFIED":     0,
@@ -69,6 +72,7 @@ var (
 		"RESOURCE_INVENTORY":       9,
 		"RESOURCE_VULNERABILITIES": 10,
 		"RESOURCE_RELEASES":        11,
+		"RESOURCE_AUDIT":           12,
 	}
 )
 
@@ -725,7 +729,7 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\arevoked\x18\x01 \x01(\rR\arevoked\"5\n" +
 	"\aRefusal\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail*\xa6\x02\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail*\xba\x02\n" +
 	"\bResource\x12\x18\n" +
 	"\x14RESOURCE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fRESOURCE_EVENTS\x10\x01\x12\x17\n" +
@@ -739,7 +743,8 @@ const file_seagull_control_v1_access_proto_rawDesc = "" +
 	"\x12RESOURCE_INVENTORY\x10\t\x12\x1c\n" +
 	"\x18RESOURCE_VULNERABILITIES\x10\n" +
 	"\x12\x15\n" +
-	"\x11RESOURCE_RELEASES\x10\v*V\n" +
+	"\x11RESOURCE_RELEASES\x10\v\x12\x12\n" +
+	"\x0eRESOURCE_AUDIT\x10\f*V\n" +
 	"\x06Action\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vACTION_READ\x10\x01\x12\x10\n" +
