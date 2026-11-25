@@ -25,6 +25,7 @@ proto/seagull/vulnerability/v1/ what a source says is wrong with software, and w
 proto/seagull/policy/v1/        how an agent is told to run, signed off the platform
 proto/seagull/update/v1/        which releases an agent may install, signed off the platform
 proto/seagull/assessment/v1/    the checks a policy asks an agent to run, and what it found
+proto/seagull/audit/v1/         who did what to which thing, chained so that nothing can be removed unseen
 gen/go/                         generated Go, committed
 ```
 
@@ -242,6 +243,33 @@ say about the host, and a finding about a replaced certificate says where it was
 used and never which certificate it was. `Agent.findings` carries the open
 findings when one agent is read; a `FindingQuery` lists them within the tenants
 a caller holds.
+
+## The audit trail
+
+An `Event` is what a person, an agent or the platform did that a security review
+has to reconstruct: who acted, as the platform verified them; what they did, from
+a closed set of actions; to which thing; when; how it ended, with the refusal
+the component answered; and the reason they gave. The component that decided it
+writes it in the same transaction as the change it describes or, for one that
+owns no relational store, before it answers. A changed document is named by its
+identifier and never copied, a question is recorded by its dataset and window,
+on the chain of each tenant it was asked within, and never by its values or its
+answer, and no event carries telemetry, a secret, a credential or a token.
+
+The audit writer chains each tenant's events, and the events of no tenant, in
+the order the audit topic holds them, so reading the topic again makes the same
+chains, and an event written twice under one identifier is chained once. An
+`Entry` keeps the event as it was published, its place on its chain and a
+SHA-256 digest over that place, the digest before it and the event's bytes, so
+removing, reordering or altering an entry breaks every digest after it and
+verifying needs no re-encoding, in any language. A `Checkpoint` states where a
+chain stood and how much of it was pruned, chained to the checkpoint before it
+and signed with Ed25519 by the audit writer, whose private key no other
+component holds: anyone with the public key verifies a chain, an external
+auditor included, and nobody who verifies can sign. The exact bytes digested and
+signed are written beside each message. An `AuditQuery` reads the entries of
+the chains a caller may read, newest first, under `audit:read` on
+`RESOURCE_AUDIT`, and a `CheckpointQuery` the checkpoints to verify them with.
 
 ## The agent policy
 
