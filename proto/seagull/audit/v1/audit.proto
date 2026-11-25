@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package seagull.audit.v1;
+
+import "google/protobuf/timestamp.proto";
+import "seagull/control/v1/access.proto";
+import "seagull/hunt/v1/hunt.proto";
+
+// Something a person, an agent or the platform did that a security review has
+// to be able to reconstruct: who did what to which thing, when, how it ended and
+// why. The component that decided it writes it, in the same transaction as the
+// change it describes or, for a component that owns no relational store, before
+// it answers. The audit writer chains it, and nothing writes, changes or removes
+// it after that.
+//
+// An event carries no telemetry, no secret, no credential, no token and never
+// the answer to a question. A document that changed is named by its identifier,
+// never copied.
+message Event {
+  // A closed set, because a review asks for one kind of action and a platform
+  // counts them.
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+
+    // A session of the control plane opened for a verified certificate, refused,
+    // or ended before it expired.
+    ACTION_SESSION_OPENED = 1;
+    ACTION_SESSION_REFUSED = 2;
+    ACTION_SESSION_REVOKED = 3;
+
+    // A request the access policy refused: the actor is known and the answer
+    // was no. `code` says which refusal.
+    ACTION_PERMISSION_DENIED = 4;
+
+    // The access policy a process was pinned to when it started, named by its
+    // digest in `change.after`: a changed policy reads as a new digest.
+    ACTION_ACCESS_POLICY_LOADED = 5;
+
+    // A ruleset published to the log, and the one the engines run made active.
+    ACTION_RULESET_PUBLISHED = 6;
+    ACTION_RULESET_ACTIVATED = 7;
+
+    // An alert or an incident moved through its lifecycle; `change` holds the
+    // state it left and the one it reached.
+    ACTION_ALERT_MOVED = 8;
+    ACTION_INCIDENT_MOVED = 9;
+
+    // An agent registered, bound to an identity the platform signed for it,
+    // moved (enabled, disabled, revoked or decommissioned) or renewed.
+    ACTION_AGENT_REGISTERED = 10;
+    ACTION_AGENT_BOUND = 11;
+    ACTION_AGENT_MOVED = 12;
+    ACTION_AGENT_RENEWED = 13;
+
+    // A signed agent policy published; an update root, catalog or package
+    // published; a rollout started or changed.
+    ACTION_AGENT_POLICY_PUBLISHED = 14;
+    ACTION_RELEASE_PUBLISHED = 15;
+    ACTION_ROLLOUT_CHANGED = 16;
+
+    // A disposition recorded on a vulnerability finding, or withdrawn.
+    ACTION_DISPOSITION_RECORDED = 17;
+    ACTION_DISPOSITION_WITHDRAWN = 18;
+
+    // A question asked of the read plane, as `question` describes it.
+    ACTION_QUESTION_ASKED = 19;
+  }
+
+  enum Outcome {
+    OUTCOME_UNSPECIFIED = 0;
+    OUTCOME_SUCCEEDED = 1;
+
+    // The request was understood and allowed, and could not be carried out.
+    OUTCOME_FAILED = 2;
+
+    // The actor was refused: not authenticated, not authorised or limited.
+    OUTCOME_DENIED = 3;
+  }
+
+  // Who acted, as the platform verified it.
+  message Actor {
+    enum Kind {
+      KIND_UNSPECIFIED = 0;
+
+      // A person or an automation holding an operator certificate.
+      KIND_OPERATOR = 1;
+
+      // An agent, by the identity the platform signed for it.
+      KIND_AGENT = 2;
+
+      // The platform itself: a process acting on its own schedule.
+      KIND_PLATFORM = 3;
+    }
+
+    Kind kind = 1;
+
+    // The verified certificate's subject, the agent's identifier or the
+    // component's name. At most 256 bytes.
+    string subject = 2;
+
+    // The control plane session it acted in, when it held one.
+    string session_id = 3;
+  }
+
+  // What the action was about.
+  message Target {
+    seagull.control.v1.Resource resource = 1;
+
+    // The entity, such as an alert or an agent, by its identifier. Empty for an
+    // action about the resource as a whole. At most 256 bytes.
+    string id = 2;
+  }
+
+  // Where the action reached the platform.
+  message Origin {
+    // The component that decided it, such as `control-api` or `query-api`.
+    string component = 1;
+
+    // The request as the component logged it, to join the event with its logs.
+    // At most 128 bytes.
+    string request_id = 2;
+
+    // The address the request came from, as the listener saw it. Personal data,
+    // masked where a deployment masks it.
+    string address = 3;
+  }
+
+  // An administrative document or a lifecycle state before and after the
+  // action, by an identifier or a state name and never the document itself: a
+  // ruleset by its content identifier, a policy by its digest, an alert by its
+  // state. At most 256 bytes each.
+  message Change {
+    string before = 1;
+    string after = 2;
+  }
+
+  // A question asked of the read plane, as metadata: which dataset and over
+  // which window. A question asked within several tenants is one event on each
+  // of their chains, under one request, so no tenant's chain names another
+  // tenant. Never the values it was asked with and never its answer, which does
+  // not exist yet when the event is written.
+  message Question {
+    // The dataset, such as `events`, `detections`, `assets` or `findings`.
+    string dataset = 1;
+
+    seagull.hunt.v1.TimeRange range = 2;
+  }
+
+  // Always 1. A platform refuses an event written to a schema it does not read.
+  uint32 schema_version = 1;
+
+  // Unique: lowercase hex, at most 64 bytes. A component that writes an event
+  // again, as an outbox does after a restart, writes it under the same
+  // identifier, and the audit writer chains it once.
+  string event_id = 2;
+
+  // The tenant the action was about. Empty for what belongs to the platform as a
+  // whole, such as a ruleset, a release or a refusal that named no tenant.
+  string tenant_id = 3;
+
+  google.protobuf.Timestamp occurred_at = 4;
+  Actor actor = 5;
+  Action action = 6;
+  Target target = 7;
+  Outcome outcome = 8;
+
+  // The refusal or failure the component answered, such as `forbidden`. Empty
+  // when the action succeeded. At most 64 bytes.
+  string code = 9;
+
+  // The reason the actor gave, such as the note of a move. At most 1,024 bytes.
+  string reason = 10;
+
+  Origin origin = 11;
+  Change change = 12;
+  Question question = 13;
+}
+
+// An event as the audit writer chained it. Each tenant's events are one chain
+// and the events of no tenant another, in the order the audit topic holds them,
+// so reading the topic again makes the same chains.
+//
+// `digest` is SHA-256 over, in this order: the UTF-8 bytes
+// `seagull.audit.v1.Entry`; the length of `chain` as a big-endian uint32 and
+// `chain`; `sequence` as a big-endian uint64; the 32 bytes of `previous`; the
+// length of `event` as a big-endian uint32 and `event`. Removing, reordering or
+// altering an entry breaks every digest after it, and verifying needs the event
+// as it was published, never a re-encoding.
+message Entry {
+  // The event exactly as the component that wrote it published it.
+  bytes event = 1;
+
+  // The tenant, or empty for the chain of what belongs to no tenant.
+  string chain = 2;
+
+  // From 1, without a gap.
+  uint64 sequence = 3;
+
+  // The digest of the entry before it on the chain; 32 zero bytes for the
+  // first.
+  bytes previous = 4;
+
+  bytes digest = 5;
+}
+
+// Where one chain stood, signed by the audit writer: the entry it had reached
+// and that entry's digest, and how much of the chain was pruned. Checkpoints are
+// chained too, so one removed or replaced breaks the next, and anyone holding
+// the writer's public key verifies a chain up to its newest checkpoint without
+// being able to sign one.
+//
+// The signed bytes are, in this order: the UTF-8 bytes
+// `seagull.audit.v1.Checkpoint`; the length of `chain` as a big-endian uint32
+// and `chain`; `sequence` and `pruned_through` as big-endian uint64; the 32
+// bytes of `digest`; `signed_at` as its Unix seconds as a big-endian int64 and
+// its nanoseconds as a big-endian int32; the 32 bytes of `previous`; the 32
+// bytes of `key_id`. A checkpoint's own digest, which the next one names as
+// `previous`, is SHA-256 over its signed bytes.
+message Checkpoint {
+  // The tenant, or empty for the chain of what belongs to no tenant.
+  string chain = 1;
+
+  // The newest entry it covers, and that entry's digest.
+  uint64 sequence = 2;
+  bytes digest = 3;
+
+  // Every entry up to and including this one was pruned; zero when none was.
+  // The chain is verified from the digest of this entry, which the checkpoint
+  // that sealed the range carried.
+  uint64 pruned_through = 4;
+
+  google.protobuf.Timestamp signed_at = 5;
+
+  // The digest of the checkpoint before it on this chain; 32 zero bytes for
+  // the first.
+  bytes previous = 6;
+
+  // SHA-256 of the Ed25519 public key that signed it.
+  bytes key_id = 7;
+
+  // Ed25519 over the signed bytes.
+  bytes signature = 8;
+}
