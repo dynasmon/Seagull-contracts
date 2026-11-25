@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package seagull.audit.v1;
+
+import "seagull/audit/v1/audit.proto";
+import "seagull/hunt/v1/hunt.proto";
+
+// What a person asks of the audit trail: the entries of the chains of the
+// tenants they may read, and the chain of what belongs to no tenant for a grant
+// of the platform, newest first. The range bounds when the events occurred. An
+// empty list is not a filter and never a wildcard denial: it asks about every
+// value of that field, within the chains the caller holds.
+message AuditQuery {
+  seagull.hunt.v1.TimeRange range = 1;
+  repeated Event.Action actions = 2;
+
+  // Actors by their verified subject, and targets by their identifier.
+  repeated string actors = 3;
+  repeated string targets = 4;
+
+  // Narrows the chains asked about to these tenants; the empty string names the
+  // chain of what belongs to no tenant.
+  repeated string chains = 5;
+
+  // Zero asks for the server's default. The server caps it either way.
+  uint32 limit = 6;
+
+  // Empty asks for the first page. Otherwise the `next_cursor` of the page
+  // before it, unchanged: it is the server's own token and is not composed by a
+  // caller.
+  string cursor = 7;
+}
+
+// Ordered by when the events occurred, newest first. A chain is verified in the
+// order of `sequence`, which a page need not follow. An empty `next_cursor`
+// means there is nothing further.
+message AuditPage {
+  repeated Entry entries = 1;
+  string next_cursor = 2;
+}
+
+// The checkpoints of one chain, newest first, to verify it with the writer's
+// public key.
+message CheckpointQuery {
+  // The tenant, or empty for the chain of what belongs to no tenant.
+  string chain = 1;
+
+  uint32 limit = 2;
+  string cursor = 3;
+}
+
+// Ordered by `sequence`, newest first. An empty `next_cursor` means there is
+// nothing further.
+message CheckpointPage {
+  repeated Checkpoint checkpoints = 1;
+  string next_cursor = 2;
+}
